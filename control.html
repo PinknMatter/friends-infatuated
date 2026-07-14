@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>FI control</title>
+    <style>
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      body {
+        background: #111; color: #ccc;
+        font: 12px ui-monospace, 'Cascadia Mono', monospace;
+        padding: 10px; padding-top: 86px;
+      }
+      #status {
+        position: fixed; top: 0; left: 0; right: 0; z-index: 10;
+        background: #191919; border-bottom: 1px solid #2c2c2c;
+        padding: 8px 12px; display: flex; flex-wrap: wrap; gap: 14px; align-items: center;
+      }
+      #status .ok { color: #46a758; }
+      #status .bad { color: #e5484d; }
+      #beat {
+        width: 12px; height: 12px; border-radius: 50%;
+        background: #333; transition: background 0.05s;
+      }
+      #beat.on { background: #f0b429; }
+      #effects { flex-basis: 100%; color: #888; }
+      #meter { background: #0a0a0a; border: 1px solid #2c2c2c; }
+      #panel { max-width: 560px; }
+      details { border: 1px solid #2a2a2a; margin-bottom: 6px; background: #161616; }
+      summary { cursor: pointer; padding: 6px 10px; color: #eee; user-select: none; }
+      .row {
+        display: flex; align-items: center; gap: 8px;
+        padding: 3px 10px 3px 18px;
+      }
+      .row label { width: 170px; color: #999; flex-shrink: 0; }
+      .row input[type='range'] { flex: 1; accent-color: #6e56cf; }
+      .row .val { width: 52px; text-align: right; color: #eee; }
+      .row select { background: #222; color: #eee; border: 1px solid #333; padding: 2px; max-width: 240px; }
+      .row button, #presets button, #presets input {
+        background: #222; color: #eee; border: 1px solid #3a3a3a;
+        padding: 4px 10px; cursor: pointer; font: inherit;
+      }
+      .row button:hover, #presets button:hover { background: #2e2e2e; }
+      #presets { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; align-items: center; }
+      #presets select { background: #222; color: #eee; border: 1px solid #333; padding: 4px; }
+      #log {
+        margin-top: 10px; max-width: 560px; max-height: 140px; overflow-y: auto;
+        color: #777; border-top: 1px solid #2a2a2a; padding-top: 6px;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="status">
+      <span id="conn" class="bad">○ disconnected</span>
+      <span id="fps">–</span>
+      <span id="bpm">–</span>
+      <span id="phase">–</span>
+      <span id="audioStatus">audio: idle</span>
+      <div id="beat"></div>
+      <canvas id="meter" width="120" height="34"></canvas>
+      <button id="scanDevices">scan audio devices</button>
+      <span id="effects"></span>
+    </div>
+    <div id="presets">
+      <input id="presetName" placeholder="preset name" />
+      <button id="presetSave">save</button>
+      <select id="presetList"></select>
+      <button id="presetLoad">load</button>
+      <button id="presetDelete">delete</button>
+    </div>
+    <div id="panel"></div>
+    <div id="log"></div>
+    <script type="module" src="/src/control/main.ts"></script>
+  </body>
+</html>
