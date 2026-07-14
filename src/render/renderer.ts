@@ -120,6 +120,8 @@ export class Renderer {
       }
 
       for (const box of boxes) this.drawBox(box);
+
+      if (this.params.bool('audio/beatMonitor')) this.drawBeatMonitor(time, audioFrame);
     }
 
     // Post pass (or direct blit if post failed to init).
@@ -140,6 +142,61 @@ export class Renderer {
     }
 
     this.trackFps(time);
+  }
+
+  // ---- beat monitor HUD (bottom-left corner; audio/beatMonitor to hide) ----
+
+  private lastDetectedAt = -10;
+  private lastGridBeatAt = -10;
+
+  private drawBeatMonitor(time: number, audio: AudioFrame): void {
+    const g = this.g;
+    if (this.audio.detectedBeat) this.lastDetectedAt = time;
+    if (audio.beat) this.lastGridBeatAt = time;
+
+    const x = 14;
+    const y = g.height - 86;
+    const w = 250;
+    const h = 72;
+    const mon = this.audio.monitor;
+
+    g.push();
+    const ctx2d = g.drawingContext as CanvasRenderingContext2D;
+    ctx2d.globalAlpha = 0.72;
+    g.noStroke();
+    g.fill(0);
+    g.rect(x, y, w, h);
+    ctx2d.globalAlpha = 1;
+
+    // Flash dots: red = raw detection event, yellow = grid beat (what effects hear).
+    const detGlow = Math.max(0, 1 - (time - this.lastDetectedAt) / 0.18);
+    const gridGlow = Math.max(0, 1 - (time - this.lastGridBeatAt) / 0.18);
+    g.fill(80 + 175 * detGlow, 30, 40);
+    g.circle(x + 18, y + 18, 16 + 6 * detGlow);
+    g.fill(90 + 150 * gridGlow, 80 + 100 * gridGlow, 20);
+    g.circle(x + 46, y + 18, 16 + 6 * gridGlow);
+
+    g.textAlign('left' as never, 'baseline' as never);
+    g.textSize(13);
+    g.fill(220);
+    g.text(`det   grid   ${audio.bpm.toFixed(1)} bpm (${this.params.bool('audio/useManualBpm') ? 'manual' : 'auto'})`, x + 62, y + 23);
+
+    // Low-band level bar vs detection threshold: the beat fires when the
+    // white bar jumps past the red tick.
+    const barY = y + 38;
+    const barW = w - 24;
+    g.fill(50);
+    g.rect(x + 12, barY, barW, 12);
+    g.fill(230);
+    g.rect(x + 12, barY, barW * Math.min(1, mon.rawLow), 12);
+    g.fill(255, 60, 70);
+    const tickX = x + 12 + barW * Math.min(1, mon.threshold);
+    g.rect(tickX - 1, barY - 3, 3, 18);
+
+    g.fill(150);
+    g.textSize(11);
+    g.text(`low ${mon.rawLow.toFixed(2)}  avg ${mon.avg.toFixed(2)}  thresh ${mon.threshold.toFixed(2)}  ${this.audio.status}`, x + 12, y + h - 8);
+    g.pop();
   }
 
   // ---- box drawing ----

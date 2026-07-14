@@ -32,6 +32,9 @@ export class AudioAnalyser {
   mode: 'mic' | 'file' = 'mic';
   status: string = 'idle';
 
+  /** Live detection internals for the on-screen beat monitor. */
+  monitor = { rawLow: 0, avg: 0, threshold: 0 };
+
   constructor(params: ParamStore, clock: Clock) {
     this.params = params;
     this.clock = clock;
@@ -209,6 +212,9 @@ export class AudioAnalyser {
       if (this.lowHistory.length > HISTORY_LEN) this.lowHistory.shift();
       const avg = this.lowHistory.reduce((a, b) => a + b, 0) / this.lowHistory.length;
       const sensitivity = this.params.num('audio/beatSensitivity');
+      this.monitor.rawLow = raw.low;
+      this.monitor.avg = avg;
+      this.monitor.threshold = Math.max(avg * sensitivity, 0.08);
       if (
         raw.low > avg * sensitivity &&
         raw.low > 0.08 &&
