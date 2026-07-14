@@ -25,11 +25,16 @@
       #beat.on { background: #f0b429; }
       #effects { flex-basis: 100%; color: #888; }
       #meter { background: #0a0a0a; border: 1px solid #2c2c2c; }
-      #panel { flex: 1 1 auto; columns: 380px; column-gap: 10px; }
-      details {
-        border: 1px solid #2a2a2a; margin-bottom: 6px; background: #161616;
-        break-inside: avoid;
+      /* Fixed columns, all sections open, each column scrolls independently:
+         the panel is a static map — nothing ever moves. */
+      #panel {
+        display: flex; gap: 10px; align-items: flex-start;
+        height: calc(100vh - 86px - 44px - 104px); /* status bar, presets row, log footer */
       }
+      #panel .col { flex: 1 1 0; min-width: 0; height: 100%; overflow-y: auto; }
+      #panel .col::-webkit-scrollbar { width: 8px; }
+      #panel .col::-webkit-scrollbar-thumb { background: #333; }
+      details { border: 1px solid #2a2a2a; margin-bottom: 6px; background: #161616; }
       summary { cursor: pointer; padding: 6px 10px; color: #eee; user-select: none; }
       .row {
         display: flex; align-items: center; gap: 8px;
@@ -54,9 +59,11 @@
       summary input[type='checkbox'] { margin-right: 6px; accent-color: #8f7aff; }
       summary .offtag { color: #e5484d; margin-left: 8px; }
       #log {
-        margin-top: 10px; max-height: 140px; overflow-y: auto;
-        color: #777; border-top: 1px solid #2a2a2a; padding-top: 6px;
+        position: fixed; bottom: 0; left: 0; right: 0; height: 96px;
+        overflow-y: auto; background: #131313; color: #777;
+        border-top: 1px solid #2a2a2a; padding: 6px 12px;
       }
+      body { overflow: hidden; }
     </style>
   </head>
   <body>

@@ -3,6 +3,29 @@
 
 import type { ParamDef, ParamStore } from '../core/params';
 
+// Fixed column assignment: sections NEVER move when one expands — each column
+// is an independent stack, so opening a panel only pushes down its own column.
+const COLUMNS: ((group: string) => boolean)[] = [
+  (g) => ['master', 'layout', 'data'].includes(g),
+  (g) => ['audio', 'phases', 'post'].includes(g),
+  // Box effects.
+  (g) =>
+    [
+      'fx: typewriter',
+      'fx: wordBoxHighlight',
+      'fx: wordColor',
+      'fx: sizePulse',
+      'fx: letterSpacingDrift',
+      'fx: justifyShift',
+      'fx: flashInOut',
+      'fx: caseFlip',
+      'fx: scramble',
+      'fx: ghostEcho',
+    ].includes(g),
+  // Global / compositing effects — and anything new lands here too.
+  () => true,
+];
+
 export function buildPanel(root: HTMLElement, params: ParamStore): void {
   const groups = new Map<string, ParamDef[]>();
   for (const def of params.allDefs()) {
@@ -11,9 +34,18 @@ export function buildPanel(root: HTMLElement, params: ParamStore): void {
     groups.set(def.group, arr);
   }
 
+  const columnEls = COLUMNS.map(() => {
+    const col = document.createElement('div');
+    col.className = 'col';
+    root.appendChild(col);
+    return col;
+  });
+
   for (const [group, defs] of groups) {
     const details = document.createElement('details');
-    details.open = !group.startsWith('fx:'); // effect knob sections start collapsed
+    // Everything open by default: the panel is a static map — nothing moves
+    // unless the user collapses a section themselves.
+    details.open = true;
     const summary = document.createElement('summary');
     summary.textContent = group;
     details.appendChild(summary);
@@ -27,7 +59,8 @@ export function buildPanel(root: HTMLElement, params: ParamStore): void {
       details.appendChild(buildRow(def, params));
     }
     if (enabledPath) addSummarySwitch(summary, enabledPath, params);
-    root.appendChild(details);
+    const colIndex = COLUMNS.findIndex((match) => match(group));
+    columnEls[colIndex].appendChild(details);
   }
 }
 
