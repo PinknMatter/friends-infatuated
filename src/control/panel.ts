@@ -14,7 +14,6 @@ const COLUMNS: ((group: string) => boolean)[] = [
       'fx: typewriter',
       'fx: wordBoxHighlight',
       'fx: wordColor',
-      'fx: sizePulse',
       'fx: letterSpacingDrift',
       'fx: justifyShift',
       'fx: flashInOut',

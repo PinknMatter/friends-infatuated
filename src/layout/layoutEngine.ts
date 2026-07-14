@@ -61,6 +61,7 @@ export class LayoutEngine {
   private morphPending = false;
   private morphStart = -Infinity;
   private lifeRng = new RNG(0xf00d);
+  private drive = 1; // tempo×energy motion multiplier from the renderer
   private lastAddReshuffle = 0;
   private pendingAdds = 0;
   private stage: Rect = { x: 0, y: 0, w: 1920, h: 1080 };
@@ -98,8 +99,9 @@ export class LayoutEngine {
     this.breatheAmount = 0;
   }
 
-  update(g: p5.Graphics, time: number, dt: number): void {
+  update(g: p5.Graphics, time: number, dt: number, drive = 1): void {
     this.time = time;
+    this.drive = drive;
 
     // Batch new-sentence reshuffles.
     if (
@@ -239,7 +241,8 @@ export class LayoutEngine {
   private rollLifetime(): number {
     const min = this.params.num('layout/lifeMin');
     const max = Math.max(min, this.params.num('layout/lifeMax'));
-    return this.lifeRng.range(min, max);
+    // Fast/loud music shortens lives; breakdowns stretch them.
+    return this.lifeRng.range(min, max) / this.drive;
   }
 
   private nextSentence(): string {
@@ -254,7 +257,7 @@ export class LayoutEngine {
     box.words = sentence.split(/\s+/).filter(Boolean);
     box.contentChangedAt = time;
     box.layout = null;
-    box.spawnAt = time + this.lifeRng.range(0.05, 0.7);
+    box.spawnAt = time + this.lifeRng.range(0.05, 0.7) / this.drive;
     box.lifetime = this.rollLifetime();
     box.outStart = -1;
     box.lifeVisible = 0;
@@ -265,8 +268,8 @@ export class LayoutEngine {
       for (const box of this.boxes) box.lifeVisible = -1;
       return;
     }
-    const inSpeed = this.params.num('layout/typeInSpeed');
-    const outSpeed = this.params.num('layout/typeOutSpeed');
+    const inSpeed = this.params.num('layout/typeInSpeed') * this.drive;
+    const outSpeed = this.params.num('layout/typeOutSpeed') * this.drive;
     for (const box of this.boxes) {
       const total = box.layout?.charCount ?? box.sentence.length;
 

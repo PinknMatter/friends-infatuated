@@ -152,10 +152,13 @@ export class PhaseScheduler {
         effectById.get(id)?.onPhaseEnter?.(this.lastCtx);
       }
     }
-    // Maybe roll into a new layout scene alongside the new phase.
+    // Maybe roll into a new layout scene alongside the new phase. Fast/loud
+    // music (drive > 1) shortens the dwell.
+    const drive = this.lastCtx?.audio.drive ?? 1;
     if (
       this.params.bool('phases/scenesEnabled') &&
-      this.clock.barPosition - this.sceneStartBar >= this.params.num('phases/sceneMinBars') &&
+      this.clock.barPosition - this.sceneStartBar >=
+        this.params.num('phases/sceneMinBars') / drive &&
       this.rootRng.chance(this.params.num('phases/sceneSwitchProb'))
     ) {
       this.switchScene();

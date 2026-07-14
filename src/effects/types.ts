@@ -14,6 +14,9 @@ export interface AudioFrame {
   beatPos: number;
   bpm: number;
   energy: number; // overall 0..1
+  /** Tempo×energy motion multiplier (1 = neutral). Fast loud music pushes it
+   *  up; breakdowns pull it down. Drives lifecycle speed & layout cadence. */
+  drive: number;
 }
 
 /** Handle for global effects that need to ask the layout engine for things.

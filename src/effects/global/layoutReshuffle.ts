@@ -20,7 +20,8 @@ export const layoutReshuffle: GlobalEffect = {
     if (intensity <= 0.05) return;
     const base = ctx.params.num('fx/layoutReshuffle/baseInterval');
     const chaos = ctx.params.num('phases/chaos');
-    const interval = (base * (1 - 0.8 * chaos)) / Math.max(0.2, intensity);
+    // Fast/loud music shifts layouts more often (audio.drive > 1 shortens).
+    const interval = (base * (1 - 0.8 * chaos)) / Math.max(0.2, intensity) / ctx.audio.drive;
     if (ctx.time - lastFire > interval) {
       lastFire = ctx.time;
       if (ctx.rng.chance(ctx.params.num('fx/layoutReshuffle/fullProb'))) {

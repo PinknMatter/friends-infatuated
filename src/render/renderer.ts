@@ -38,9 +38,11 @@ export class Renderer {
     beatPos: 0,
     bpm: 128,
     energy: 0,
+    drive: 1,
   };
   private beatSinceStatus = false;
   private detectedSinceStatus = false;
+  private driveEnergy = 0; // slow-smoothed energy (tracks the section, not the beat)
 
   constructor(opts: {
     g: p5.Graphics;
@@ -77,6 +79,14 @@ export class Renderer {
     if (audioFrame.beat) this.beatSinceStatus = true;
     if (this.audio.detectedBeat) this.detectedSinceStatus = true;
 
+    // Motion drive: BPM × sustained energy (2.5s time constant so it follows
+    // sections, not individual hits). driveAmount blends it toward neutral 1.
+    this.driveEnergy += (audioFrame.energy - this.driveEnergy) * Math.min(1, dt / 2.5);
+    const bpmFactor = audioFrame.bpm / 120;
+    const energyFactor = 0.45 + 1.35 * this.driveEnergy;
+    const rawDrive = Math.min(3, Math.max(0.3, bpmFactor * energyFactor));
+    audioFrame.drive = 1 + (rawDrive - 1) * this.params.num('audio/driveAmount');
+
     if (!paused) {
       resetFrameFlags();
       this.layout.resetFrameState();
@@ -93,7 +103,7 @@ export class Renderer {
       };
 
       this.scheduler.update(ctx);
-      this.layout.update(g, time, dt);
+      this.layout.update(g, time, dt, audioFrame.drive);
 
       const boxes = this.layout.boxes;
       for (const box of boxes) {

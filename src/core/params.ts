@@ -268,6 +268,9 @@ export const PARAM_DEFS: ParamDef[] = [
   F('audio/release', 'Band release', 'audio', 0.08, 0.01, 1),
   F('audio/beatSensitivity', 'Beat sensitivity', 'audio', 1.25, 1, 3),
   B('audio/beatMonitor', 'Beat monitor on projector output', 'audio', false),
+  // How strongly tempo+energy accelerate the lifecycle & layout cadence
+  // (0 = music tempo doesn't affect motion, 1 = full effect).
+  F('audio/driveAmount', 'Tempo drives motion', 'audio', 0.85, 0, 1),
   F('audio/manualBpm', 'Manual BPM', 'audio', 128, 60, 200, 0.5),
   B('audio/useManualBpm', 'MANUAL BPM (overrides detection)', 'audio', true),
   T('audio/tapTempo', 'Tap tempo', 'audio'),
@@ -325,9 +328,6 @@ export const PARAM_DEFS: ParamDef[] = [
   F('fx/wordColor/intensity', 'Intensity override', 'fx: wordColor', -1, -1, 1),
   E('fx/wordColor/palette', 'Palette', 'fx: wordColor', 'neon', ['neon', 'acid', 'ice', 'blood']),
   F('fx/wordColor/flickerRate', 'Flicker rate', 'fx: wordColor', 0.65, 0, 1),
-  // sizePulse
-  F('fx/sizePulse/intensity', 'Intensity override', 'fx: sizePulse', -1, -1, 1),
-  F('fx/sizePulse/depth', 'Pulse depth', 'fx: sizePulse', 0.25, 0, 0.6),
   // letterSpacingDrift
   F('fx/letterSpacingDrift/intensity', 'Intensity override', 'fx: letterSpacingDrift', -1, -1, 1),
   F('fx/letterSpacingDrift/amount', 'Drift amount', 'fx: letterSpacingDrift', 0.5, 0, 1),
@@ -396,7 +396,6 @@ export const FX_IDS = [
   'typewriter',
   'wordBoxHighlight',
   'wordColor',
-  'sizePulse',
   'letterSpacingDrift',
   'justifyShift',
   'flashInOut',

@@ -237,6 +237,7 @@ export class AudioAnalyser {
       beatPos: this.clock.beatPosition,
       bpm: this.clock.bpm,
       energy: this.smoothed.energy,
+      drive: 1, // renderer computes and overwrites (needs slow-smoothed state)
     };
   }
 

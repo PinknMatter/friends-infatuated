@@ -10,7 +10,6 @@ import type { Effect } from './types';
 import { typewriter } from './box/typewriter';
 import { wordBoxHighlight } from './box/wordBoxHighlight';
 import { wordColor } from './box/wordColor';
-import { sizePulse } from './box/sizePulse';
 import { letterSpacingDrift } from './box/letterSpacingDrift';
 import { justifyShift } from './box/justifyShift';
 import { flashInOut } from './box/flashInOut';
@@ -31,7 +30,6 @@ export const EFFECTS: Effect[] = [
   typewriter,
   wordBoxHighlight,
   wordColor,
-  sizePulse,
   letterSpacingDrift,
   justifyShift,
   flashInOut,
