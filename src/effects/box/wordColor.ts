@@ -1,4 +1,6 @@
-// Random words change fill color from a palette; flicker rate rides the high band.
+// Random words change fill color from a palette. Re-colors on beat
+// subdivisions (flickerRate 0 = every 2 beats … 1 = every 16th note), so it
+// rides the BPM — manual or detected. High band widens how many words color.
 
 import type { BoxEffect, BoxStyle, EffectCtx } from '../types';
 import type { TextBox } from '../../layout/layoutEngine';
@@ -12,7 +14,7 @@ const PALETTES: Record<string, string[]> = {
 
 interface State {
   colors: Map<number, string>;
-  nextRefresh: number;
+  epoch: number;
 }
 
 const states = new Map<number, State>();
@@ -24,16 +26,20 @@ export const wordColor: BoxEffect = {
   apply(box: TextBox, style: BoxStyle, intensity: number, ctx: EffectCtx) {
     const palette = PALETTES[ctx.params.str('fx/wordColor/palette')] ?? PALETTES.neon;
     const flicker = ctx.params.num('fx/wordColor/flickerRate');
-    // Refresh interval shrinks with flicker param and high-band energy.
-    const interval = 1.5 / (0.2 + flicker * 3 * (0.3 + ctx.audio.bands.high));
+    // Beat-synced refresh: 0 → every 2 beats, 0.65 (default) → ~2.5×/beat,
+    // 1 → 16th notes.
+    const subdiv = 0.5 + flicker * 3.5;
+    const epoch = Math.floor(ctx.audio.beatPos * subdiv);
 
     let st = states.get(box.id);
-    if (!st || ctx.time > st.nextRefresh) {
+    if (!st || st.epoch !== epoch) {
+      // High band widens coverage: more words light up when the top end hits.
+      const coverage = 0.25 + 0.45 * ctx.audio.bands.high;
       const colors = new Map<number, string>();
       for (let wi = 0; wi < box.words.length; wi++) {
-        if (ctx.rng.chance(0.3)) colors.set(wi, ctx.rng.pick(palette));
+        if (ctx.rng.chance(coverage)) colors.set(wi, ctx.rng.pick(palette));
       }
-      st = { colors, nextRefresh: ctx.time + interval };
+      st = { colors, epoch };
       states.set(box.id, st);
     }
 

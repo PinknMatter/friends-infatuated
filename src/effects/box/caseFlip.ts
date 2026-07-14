@@ -10,7 +10,8 @@ export const caseFlip: BoxEffect = {
 
   apply(box: TextBox, style: BoxStyle, intensity: number, ctx: EffectCtx) {
     const rate = ctx.params.num('fx/caseFlip/rate');
-    const epoch = Math.floor(ctx.time * rate);
+    // Beat-synced: default 0.15 → flips roughly every 7 beats (slow, as designed).
+    const epoch = Math.floor(ctx.audio.beatPos * rate);
     for (let wi = 0; wi < box.words.length; wi++) {
       if (hash01(box.id * 53.1 + wi * 29.7 + epoch * 3.1) < 0.25 * intensity) {
         const prev = style.perWord.get(wi) ?? {};

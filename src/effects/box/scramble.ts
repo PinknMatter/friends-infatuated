@@ -8,7 +8,6 @@ const GLYPHS = '!<>-_\\/[]{}—=+*^?#@$%&01';
 
 interface State {
   eventStart: number;
-  nextEvent: number;
 }
 
 const states = new Map<number, State>();
@@ -29,13 +28,16 @@ export const scramble: BoxEffect = {
 
     let st = states.get(box.id);
     if (!st) {
-      // Stagger first events so boxes don't all decode at once.
-      st = { eventStart: -100, nextEvent: ctx.time + ctx.rng.range(0, 2 / rate) };
+      st = { eventStart: -100 };
       states.set(box.id, st);
     }
-    if (ctx.time > st.nextEvent) {
-      st.eventStart = ctx.time;
-      st.nextEvent = ctx.time + resolveTime + ctx.rng.range(0.5, 3) / rate;
+    // Decode events launch ON the beat, deterministically staggered per box
+    // (default rate 0.6 → each box decodes roughly every 6-7 beats).
+    if (ctx.audio.beat && ctx.time - st.eventStart > resolveTime) {
+      const beatIndex = Math.round(ctx.audio.beatPos);
+      if (hash01(box.id * 41.3 + beatIndex * 9.7) < rate * 0.25) {
+        st.eventStart = ctx.time;
+      }
     }
 
     const elapsed = ctx.time - st.eventStart;

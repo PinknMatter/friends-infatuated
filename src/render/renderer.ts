@@ -35,6 +35,8 @@ export class Renderer {
   private lastAudio: AudioFrame = {
     bands: { low: 0, mid: 0, high: 0 },
     beat: false,
+    beatPos: 0,
+    bpm: 128,
     energy: 0,
   };
   private beatSinceStatus = false;

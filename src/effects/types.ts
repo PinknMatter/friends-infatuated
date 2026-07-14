@@ -7,8 +7,12 @@ import type { ParamReader } from '../core/params';
 import type { TextBox } from '../layout/layoutEngine';
 
 export interface AudioFrame {
-  bands: { low: number; mid: number; high: number }; // smoothed 0..1
+  bands: { low: number; mid: number; high: number }; // smoothed 0..1, boost-compensated
   beat: boolean; // true on the frame a beat fires (clock-derived)
+  /** Continuous beat position (floats through beats) — rhythmic effects sync
+   *  their epochs to this so EVERYTHING rides the BPM (incl. manual BPM). */
+  beatPos: number;
+  bpm: number;
   energy: number; // overall 0..1
 }
 

@@ -11,7 +11,9 @@ export const ghostEcho: BoxEffect = {
     if (intensity <= 0.02) return;
     const copies = ctx.params.num('fx/ghostEcho/copies');
     const maxOffset = ctx.params.num('fx/ghostEcho/offset');
-    const drive = 0.25 + 0.75 * ctx.audio.energy;
+    // Energy or beat thump, whichever kicks harder.
+    const thump = Math.exp(-(ctx.audio.beatPos % 1) * 4);
+    const drive = 0.25 + 0.75 * Math.max(ctx.audio.energy, thump * 0.8);
     for (let i = 1; i <= copies; i++) {
       const angle = ctx.time * (0.7 + i * 0.35) + box.id * 1.3 + i * 2.1;
       const r = maxOffset * drive * intensity * (i / copies);

@@ -12,7 +12,8 @@ export const letterSpacingDrift: BoxEffect = {
     const amount = ctx.params.num('fx/letterSpacingDrift/amount');
     const rate = ctx.params.num('fx/letterSpacingDrift/rate');
     const amp = amount * (0.3 + 0.7 * ctx.audio.bands.mid);
-    const osc = Math.sin(ctx.time * rate * Math.PI * 2 + box.id * 2.39);
+    // Oscillation period locked to the beat grid (default rate 0.4 → 5 beats).
+    const osc = Math.sin(ctx.audio.beatPos * rate * Math.PI + box.id * 2.39);
     // Fraction of fontSize; renderer clamps to available line slack.
     style.letterSpacing += osc * 0.25 * amp * intensity;
   },

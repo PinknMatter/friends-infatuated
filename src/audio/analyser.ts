@@ -185,10 +185,12 @@ export class AudioAnalyser {
         return to >= from ? sum / ((to - from + 1) * 255) : 0;
       };
 
+      // Spectra tilt heavily toward bass — without makeup gain the mid/high
+      // bands barely move and effects riding them look dead.
       const raw = {
-        low: band(20, lowCross),
-        mid: band(lowCross, midCross),
-        high: band(midCross, 10000),
+        low: Math.min(1, band(20, lowCross) * this.params.num('audio/lowBoost')),
+        mid: Math.min(1, band(lowCross, midCross) * this.params.num('audio/midBoost')),
+        high: Math.min(1, band(midCross, 10000) * this.params.num('audio/highBoost')),
       };
       const energy = (raw.low + raw.mid + raw.high) / 3;
 
@@ -221,6 +223,8 @@ export class AudioAnalyser {
     return {
       bands: { low: this.smoothed.low, mid: this.smoothed.mid, high: this.smoothed.high },
       beat: this.clock.beatThisFrame,
+      beatPos: this.clock.beatPosition,
+      bpm: this.clock.bpm,
       energy: this.smoothed.energy,
     };
   }

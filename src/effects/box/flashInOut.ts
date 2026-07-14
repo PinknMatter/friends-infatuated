@@ -1,4 +1,5 @@
-// Whole boxes or individual words blink in/out.
+// Whole boxes or individual words blink in/out, on beat subdivisions
+// (rate 0.5 = per beat, 1 = 8th notes, ...). High band raises blink odds.
 
 import type { BoxEffect, BoxStyle, EffectCtx } from '../types';
 import type { TextBox } from '../../layout/layoutEngine';
@@ -8,9 +9,10 @@ export const flashInOut: BoxEffect = {
   kind: 'box',
 
   apply(box: TextBox, style: BoxStyle, intensity: number, ctx: EffectCtx) {
-    const probability = ctx.params.num('fx/flashInOut/probability');
+    const probability =
+      ctx.params.num('fx/flashInOut/probability') * (0.7 + 0.6 * ctx.audio.bands.high);
     const rate = ctx.params.num('fx/flashInOut/rate');
-    const epoch = Math.floor(ctx.time * rate * (1 + ctx.audio.bands.high));
+    const epoch = Math.floor(ctx.audio.beatPos * rate * 2);
 
     // Whole-box blink.
     if (hash01(box.id * 91.7 + epoch * 13.3) < probability * 0.4) {
