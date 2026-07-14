@@ -18,11 +18,37 @@ export function buildPanel(root: HTMLElement, params: ParamStore): void {
     summary.textContent = group;
     details.appendChild(summary);
 
+    // fx sections get their on/off switch right in the header.
+    const isFx = group.startsWith('fx: ');
+    const enabledPath = isFx ? `fx/${group.slice(4)}/enabled` : null;
+
     for (const def of defs) {
+      if (def.path === enabledPath) continue; // rendered in the summary instead
       details.appendChild(buildRow(def, params));
     }
+    if (enabledPath) addSummarySwitch(summary, enabledPath, params);
     root.appendChild(details);
   }
+}
+
+function addSummarySwitch(summary: HTMLElement, path: string, params: ParamStore): void {
+  const toggle = document.createElement('input');
+  toggle.type = 'checkbox';
+  toggle.checked = params.bool(path);
+  toggle.title = path;
+  const offtag = document.createElement('span');
+  offtag.className = 'offtag';
+  const render = (on: boolean) => (offtag.textContent = on ? '' : 'OFF');
+  render(toggle.checked);
+  // Don't let the checkbox click toggle the <details> open/closed.
+  toggle.addEventListener('click', (e) => e.stopPropagation());
+  toggle.addEventListener('change', () => params.set(path, toggle.checked));
+  params.onChange(path, (v) => {
+    toggle.checked = Boolean(v);
+    render(Boolean(v));
+  });
+  summary.prepend(toggle);
+  summary.appendChild(offtag);
 }
 
 function buildRow(def: ParamDef, params: ParamStore): HTMLElement {

@@ -12,73 +12,11 @@ const transport = new BroadcastTransport();
 params.bindTransport(transport, 'control');
 
 buildPanel(document.getElementById('panel')!, params);
-buildMixer(document.getElementById('mixer')!);
 
-// ---- FX mixer: the tuning workflow. Kill the phases, then bring effects in
-// one at a time. Just another params client — same paths as the fx sections.
-
-function buildMixer(root: HTMLElement): void {
-  const h3 = document.createElement('h3');
-  h3.textContent = 'FX MIXER — phases off → tune one effect at a time';
-  root.appendChild(h3);
-
-  // Master row: phases on/off + all-effects helpers.
-  const master = document.createElement('div');
-  master.className = 'mixrow master';
-  const phasesToggle = document.createElement('input');
-  phasesToggle.type = 'checkbox';
-  phasesToggle.checked = params.bool('phases/enabled');
-  phasesToggle.addEventListener('change', () => params.set('phases/enabled', phasesToggle.checked));
-  params.onChange('phases/enabled', (v) => (phasesToggle.checked = Boolean(v)));
-  const phasesLabel = document.createElement('label');
-  phasesLabel.textContent = 'PHASES (off = manual tuning)';
-  phasesLabel.prepend(phasesToggle);
-  const clearBtn = document.createElement('button');
-  clearBtn.textContent = 'clear all overrides';
-  clearBtn.addEventListener('click', () => {
-    for (const id of FX_IDS) params.set(`fx/${id}/intensity`, -1);
-  });
-  master.append(phasesLabel, clearBtn);
-  root.appendChild(master);
-
-  for (const id of FX_IDS) {
-    const row = document.createElement('div');
-    row.className = 'mixrow';
-
-    const enable = document.createElement('input');
-    enable.type = 'checkbox';
-    enable.checked = params.bool(`fx/${id}/enabled`);
-    enable.addEventListener('change', () => params.set(`fx/${id}/enabled`, enable.checked));
-    params.onChange(`fx/${id}/enabled`, (v) => (enable.checked = Boolean(v)));
-
-    const label = document.createElement('label');
-    label.textContent = id;
-    label.prepend(enable);
-
-    const slider = document.createElement('input');
-    slider.type = 'range';
-    slider.min = '-1';
-    slider.max = '1';
-    slider.step = '0.01';
-    slider.value = String(params.num(`fx/${id}/intensity`));
-
-    const val = document.createElement('span');
-    val.className = 'val';
-    const render = (v: number) => (val.textContent = v < 0 ? 'auto' : v.toFixed(2));
-    render(params.num(`fx/${id}/intensity`));
-
-    slider.addEventListener('input', () => {
-      params.set(`fx/${id}/intensity`, Number(slider.value));
-    });
-    params.onChange(`fx/${id}/intensity`, (v) => {
-      slider.value = String(v);
-      render(Number(v));
-    });
-
-    row.append(label, slider, val);
-    root.appendChild(row);
-  }
-}
+// Reset every fx intensity override back to auto (scheduler-driven).
+document.getElementById('clearOverrides')!.addEventListener('click', () => {
+  for (const id of FX_IDS) params.set(`fx/${id}/intensity`, -1);
+});
 
 // ---- audio file upload → render window ----
 
