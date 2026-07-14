@@ -16,6 +16,8 @@ export type BSPNode =
       kind: 'split';
       dir: 'h' | 'v'; // 'v' = vertical cut (splits width), 'h' = horizontal cut (splits height)
       baseRatio: number;
+      fromRatio: number; // morph animation endpoints (grid shifts as a unit)
+      toRatio: number;
       phase: number; // per-node phase for breathing
       a: BSPNode;
       b: BSPNode;
@@ -27,6 +29,9 @@ export interface BSPOptions {
   minH: number;
   ratioLow: number;
   ratioHigh: number;
+  /** 0 = pure aspect-based split direction (grid-ish), 1 = heavily horizontal
+   *  splits → stacked full-width rows. */
+  rowBias: number;
 }
 
 let nextLeafId = 0;
@@ -42,11 +47,12 @@ function split(rng: RNG, region: Rect, budget: number, opts: BSPOptions): BSPNod
     return { kind: 'leaf', id: nextLeafId++ };
   }
 
-  // Wide regions prefer vertical splits, tall prefer horizontal.
+  // Wide regions prefer vertical splits, tall prefer horizontal — but rowBias
+  // suppresses vertical cuts so the layout reads as squeezed stacked rows.
   let dir: 'h' | 'v';
   if (canV && canH) {
     const aspect = region.w / region.h;
-    const pVertical = aspect / (aspect + 1 / aspect); // aspect 1 → 0.5, wide → →1
+    const pVertical = (aspect / (aspect + 1 / aspect)) * (1 - opts.rowBias);
     dir = rng.chance(pVertical) ? 'v' : 'h';
   } else {
     dir = canV ? 'v' : 'h';
@@ -63,10 +69,33 @@ function split(rng: RNG, region: Rect, budget: number, opts: BSPOptions): BSPNod
     kind: 'split',
     dir,
     baseRatio: ratio,
+    fromRatio: ratio,
+    toRatio: ratio,
     phase: rng.range(0, Math.PI * 2),
     a: split(rng, ra, budgetA, opts),
     b: split(rng, rb, budgetB, opts),
   };
+}
+
+/**
+ * Pick new target ratios for every split node. Combined with applyMorphT this
+ * shifts the WHOLE grid as one coordinated unit (boxes keep their slots and
+ * neighbours — the grid reflows rather than boxes flying independently).
+ */
+export function retargetRatios(node: BSPNode, rng: RNG, low: number, high: number): void {
+  if (node.kind === 'leaf') return;
+  node.fromRatio = node.baseRatio;
+  node.toRatio = rng.range(low, high);
+  retargetRatios(node.a, rng, low, high);
+  retargetRatios(node.b, rng, low, high);
+}
+
+/** Advance the morph: t in [0,1] (already eased by the caller). */
+export function applyMorphT(node: BSPNode, t: number): void {
+  if (node.kind === 'leaf') return;
+  node.baseRatio = node.fromRatio + (node.toRatio - node.fromRatio) * t;
+  applyMorphT(node.a, t);
+  applyMorphT(node.b, t);
 }
 
 function splitRect(r: Rect, dir: 'h' | 'v', ratio: number): [Rect, Rect] {

@@ -1,4 +1,6 @@
-// Periodically triggers a layout reshuffle; interval shrinks as chaos rises.
+// Periodically shifts the layout; interval shrinks as chaos rises. Most fires
+// are whole-grid morphs (the grid reflows as a unit); fullProb of them are
+// full rebuilds with fresh sentences.
 
 import type { GlobalEffect, EffectCtx } from '../types';
 import type { TextBox } from '../../layout/layoutEngine';
@@ -21,7 +23,11 @@ export const layoutReshuffle: GlobalEffect = {
     const interval = (base * (1 - 0.8 * chaos)) / Math.max(0.2, intensity);
     if (ctx.time - lastFire > interval) {
       lastFire = ctx.time;
-      ctx.layout.requestReshuffle();
+      if (ctx.rng.chance(ctx.params.num('fx/layoutReshuffle/fullProb'))) {
+        ctx.layout.requestReshuffle();
+      } else {
+        ctx.layout.requestMorph();
+      }
     }
   },
 };

@@ -2,7 +2,14 @@
 // rects — effects receive Readonly<Rect> and style-mutate inside it.
 
 import type p5 from 'p5';
-import { buildTree, computeLeafRects, type BSPNode, type Rect } from './bsp';
+import {
+  applyMorphT,
+  buildTree,
+  computeLeafRects,
+  retargetRatios,
+  type BSPNode,
+  type Rect,
+} from './bsp';
 import { fitText, type TextLayout } from './fitText';
 import { RNG } from '../core/rng';
 import type { ParamStore } from '../core/params';
@@ -44,6 +51,8 @@ export class LayoutEngine {
   private breatheAmount = 0;
   private time = 0;
   private reshufflePending = false;
+  private morphPending = false;
+  private morphStart = -Infinity;
   private lastAddReshuffle = 0;
   private pendingAdds = 0;
   private stage: Rect = { x: 0, y: 0, w: 1920, h: 1080 };
@@ -53,6 +62,7 @@ export class LayoutEngine {
     this.store = store;
     this.stage = { x: 0, y: 0, w: width, h: height };
     params.onChange('layout/reshuffle', () => this.requestReshuffle());
+    params.onChange('layout/morph', () => this.requestMorph());
     store.onAdded(() => {
       this.pendingAdds++;
     });
@@ -60,6 +70,12 @@ export class LayoutEngine {
 
   requestReshuffle(): void {
     this.reshufflePending = true;
+  }
+
+  /** Shift the whole grid as a unit: every split ratio glides to a new value,
+   *  boxes keep their slots/sentences and reflow together. */
+  requestMorph(): void {
+    this.morphPending = true;
   }
 
   /** Called by gridBreathe (via LayoutHandle). Reset to 0 by the renderer each frame. */
@@ -86,7 +102,25 @@ export class LayoutEngine {
 
     if (this.reshufflePending || this.tree === null) {
       this.reshufflePending = false;
+      this.morphStart = -Infinity; // a rebuild supersedes any running morph
       this.reshuffle(g, time);
+    } else if (this.morphPending && this.tree) {
+      this.morphPending = false;
+      const rng = new RNG(this.params.num('master/seed') + Math.floor(time * 1000));
+      retargetRatios(
+        this.tree,
+        rng,
+        this.params.num('layout/splitBiasLow'),
+        this.params.num('layout/splitBiasHigh'),
+      );
+      this.morphStart = time;
+    }
+
+    // Advance a running grid morph (eased; all nodes move in lockstep).
+    if (this.tree && time - this.morphStart >= 0) {
+      const dur = Math.max(0.05, this.params.num('layout/morphDur'));
+      const t = Math.min(1, (time - this.morphStart) / dur);
+      applyMorphT(this.tree, easeInOut(t));
     }
 
     this.applyRects(g, time);
@@ -106,6 +140,7 @@ export class LayoutEngine {
       minH: this.params.num('layout/minBoxH'),
       ratioLow: this.params.num('layout/splitBiasLow'),
       ratioHigh: this.params.num('layout/splitBiasHigh'),
+      rowBias: this.params.num('layout/rowBias'),
     });
 
     const leaves = computeLeafRects(this.tree, this.stage, null).map((l) =>

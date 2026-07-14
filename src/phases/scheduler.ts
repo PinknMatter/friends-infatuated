@@ -13,12 +13,12 @@ import type { EffectCtx } from '../effects/types';
 
 const POST_KEYS = ['rgbSplit', 'feedbackDecay', 'displacement', 'scanlines', 'noise', 'bloomish'] as const;
 const POST_CEILING: Record<(typeof POST_KEYS)[number], number> = {
-  rgbSplit: 0.7,
-  feedbackDecay: 0.92,
-  displacement: 0.6,
-  scanlines: 0.8,
-  noise: 0.6,
-  bloomish: 0.8,
+  rgbSplit: 0.85,
+  feedbackDecay: 0.95,
+  displacement: 0.75,
+  scanlines: 0.85,
+  noise: 0.7,
+  bloomish: 0.85,
 };
 
 interface Phase {
@@ -100,15 +100,15 @@ export class PhaseScheduler {
         continue;
       }
       // Intensity ceiling rises with chaos.
-      const ceiling = 0.55 + 0.45 * chaos;
-      chosen.set(picked, rng.range(0.45, ceiling));
+      const ceiling = Math.min(1, 0.65 + 0.5 * chaos);
+      chosen.set(picked, rng.range(0.5, ceiling));
     }
 
     // Post-uniform targets: more (and hotter) as chaos rises.
     const post: Phase['post'] = {};
     for (const key of POST_KEYS) {
-      if (rng.chance(chaos * 0.55)) {
-        post[key] = rng.range(0.1, POST_CEILING[key] * chaos);
+      if (rng.chance(0.2 + chaos * 0.6)) {
+        post[key] = rng.range(0.12, POST_CEILING[key] * Math.min(1, 0.25 + chaos));
       }
     }
 

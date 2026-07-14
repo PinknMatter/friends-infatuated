@@ -54,18 +54,18 @@ export function selectionWeight(id: string, chaos: number): number {
   if (!effect) return 0;
   switch (id) {
     case 'asciiCamera':
-      return chaos > 0.5 ? (chaos - 0.5) * 2 : 0;
+      return chaos > 0.35 ? (chaos - 0.35) * 2.2 : 0;
     case 'strobeInvert':
-      return chaos > 0.7 ? (chaos - 0.7) * 2.5 : 0;
+      return chaos > 0.55 ? (chaos - 0.55) * 2.8 : 0;
     case 'similarWords':
       return 1.2; // signature effect — always a strong candidate
     case 'layoutReshuffle':
     case 'spotlight':
     case 'cascade':
     case 'gridBreathe':
-      return 0.3 + chaos * 1.2;
+      return 0.45 + chaos * 1.4;
     default:
       // Box effects: strong early, still present late.
-      return 1 - chaos * 0.35;
+      return 1 - chaos * 0.3;
   }
 }

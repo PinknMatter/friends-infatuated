@@ -29,7 +29,7 @@ export interface TextLayout {
   maxWidth: number;
 }
 
-const LINE_HEIGHT_FACTOR = 1.15;
+const LINE_HEIGHT_FACTOR = 1.06; // tight — rows should read squeezed together
 const MIN_SIZE = 9;
 const MAX_SIZE = 260;
 

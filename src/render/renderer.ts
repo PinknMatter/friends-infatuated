@@ -59,6 +59,7 @@ export class Renderer {
     this.post = opts.post;
     this.layoutHandle = {
       requestReshuffle: () => this.layout.requestReshuffle(),
+      requestMorph: () => this.layout.requestMorph(),
       setBreathe: (amount) => this.layout.setBreathe(amount),
     };
   }

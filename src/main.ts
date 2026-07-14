@@ -25,6 +25,13 @@ params.bindTransport(transport, 'render');
 const clock = new Clock(params);
 const store = new StaticSentenceStore();
 params.onChange('data/injectRandom', () => store.injectRandom());
+// Optional dataset drop-in: /public/sentences.json (array of strings).
+void store.loadExternal().then((n) => {
+  if (n > 0) {
+    console.info(`[data] merged ${n} external sentences`);
+    transport.send({ type: 'log', text: `dataset: merged ${n} sentences from sentences.json` });
+  }
+});
 
 const layout = new LayoutEngine(params, store, W, H);
 const audio = new AudioAnalyser(params, clock);

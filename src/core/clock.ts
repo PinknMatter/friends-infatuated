@@ -40,6 +40,9 @@ export class Clock {
 
   /** Called by the audio analyser when it detects a beat. */
   reportDetectedBeat(time: number): void {
+    // Manual BPM is a hard override: detection must not re-anchor the beat
+    // grid or feed the detected tempo while the switch is on.
+    if (this.params.bool('audio/useManualBpm')) return;
     if (this.lastBeatTime > 0) {
       const interval = time - this.lastBeatTime;
       if (interval > 0.25 && interval < 1.2) {

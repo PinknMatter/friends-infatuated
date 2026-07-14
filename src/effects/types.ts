@@ -16,6 +16,8 @@ export interface AudioFrame {
  *  The engine still owns all rect mutation. */
 export interface LayoutHandle {
   requestReshuffle(): void;
+  /** Coordinated whole-grid shift: ratios glide, boxes keep slots. */
+  requestMorph(): void;
   setBreathe(amount: number): void;
 }
 

@@ -228,16 +228,19 @@ export const PARAM_DEFS: ParamDef[] = [
   E('master/fontId', 'Font', 'master', 'main', ['main']),
 
   // ---- layout ----
-  I('layout/minBoxes', 'Min boxes', 'layout', 8, 2, 40),
-  I('layout/maxBoxes', 'Max boxes', 'layout', 18, 2, 40),
+  I('layout/minBoxes', 'Min boxes', 'layout', 10, 2, 40),
+  I('layout/maxBoxes', 'Max boxes', 'layout', 22, 2, 40),
+  F('layout/rowBias', 'Row bias (rows vs grid)', 'layout', 0.75, 0, 1),
   F('layout/splitBiasLow', 'Split ratio min', 'layout', 0.3, 0.1, 0.5),
   F('layout/splitBiasHigh', 'Split ratio max', 'layout', 0.7, 0.5, 0.9),
-  I('layout/minBoxW', 'Min box width px', 'layout', 220, 80, 600),
-  I('layout/minBoxH', 'Min box height px', 'layout', 90, 40, 400),
-  I('layout/gutter', 'Gutter px', 'layout', 10, 0, 60),
-  I('layout/padding', 'Text padding px', 'layout', 14, 0, 60),
+  I('layout/minBoxW', 'Min box width px', 'layout', 260, 80, 600),
+  I('layout/minBoxH', 'Min box height px', 'layout', 56, 30, 400),
+  I('layout/gutter', 'Gutter px', 'layout', 4, 0, 60),
+  I('layout/padding', 'Text padding px', 'layout', 7, 0, 60),
   F('layout/transitionDur', 'Transition secs', 'layout', 1.2, 0.1, 5),
+  F('layout/morphDur', 'Grid morph secs', 'layout', 2.2, 0.2, 8),
   T('layout/reshuffle', 'Reshuffle now', 'layout'),
+  T('layout/morph', 'Shift grid now', 'layout'),
   I('layout/reshuffleBatchSecs', 'New-sentence batch secs', 'layout', 20, 2, 120),
 
   // ---- audio ----
@@ -250,15 +253,15 @@ export const PARAM_DEFS: ParamDef[] = [
   F('audio/release', 'Band release', 'audio', 0.08, 0.01, 1),
   F('audio/beatSensitivity', 'Beat sensitivity', 'audio', 1.4, 1, 3),
   F('audio/manualBpm', 'Manual BPM', 'audio', 128, 60, 200, 0.5),
-  B('audio/useManualBpm', 'Use manual BPM', 'audio', true),
+  B('audio/useManualBpm', 'MANUAL BPM (overrides detection)', 'audio', true),
   T('audio/tapTempo', 'Tap tempo', 'audio'),
 
   // ---- phases ----
-  F('phases/chaos', 'CHAOS', 'phases', 0.3, 0, 1),
-  I('phases/durationBars', 'Phase duration bars', 'phases', 8, 1, 64),
+  F('phases/chaos', 'CHAOS', 'phases', 0.5, 0, 1),
+  I('phases/durationBars', 'Phase duration bars', 'phases', 6, 1, 64),
   I('phases/minEffects', 'Effects per phase min', 'phases', 2, 1, 6),
-  I('phases/maxEffects', 'Effects per phase max', 'phases', 4, 1, 8),
-  F('phases/crossfadeBeats', 'Crossfade beats', 'phases', 8, 1, 32, 1),
+  I('phases/maxEffects', 'Effects per phase max', 'phases', 5, 1, 8),
+  F('phases/crossfadeBeats', 'Crossfade beats', 'phases', 6, 1, 32, 1),
   T('phases/next', 'Force next phase', 'phases'),
   B('phases/freeze', 'Freeze phase', 'phases', false),
 
@@ -293,7 +296,7 @@ export const PARAM_DEFS: ParamDef[] = [
   // wordColor
   F('fx/wordColor/intensity', 'Intensity override', 'fx: wordColor', -1, -1, 1),
   E('fx/wordColor/palette', 'Palette', 'fx: wordColor', 'neon', ['neon', 'acid', 'ice', 'blood']),
-  F('fx/wordColor/flickerRate', 'Flicker rate', 'fx: wordColor', 0.5, 0, 1),
+  F('fx/wordColor/flickerRate', 'Flicker rate', 'fx: wordColor', 0.65, 0, 1),
   // sizePulse
   F('fx/sizePulse/intensity', 'Intensity override', 'fx: sizePulse', -1, -1, 1),
   F('fx/sizePulse/depth', 'Pulse depth', 'fx: sizePulse', 0.25, 0, 0.6),
@@ -307,14 +310,14 @@ export const PARAM_DEFS: ParamDef[] = [
   F('fx/justifyShift/interval', 'Interval secs', 'fx: justifyShift', 1.5, 0.2, 8),
   // flashInOut
   F('fx/flashInOut/intensity', 'Intensity override', 'fx: flashInOut', -1, -1, 1),
-  F('fx/flashInOut/probability', 'Probability', 'fx: flashInOut', 0.3, 0, 1),
+  F('fx/flashInOut/probability', 'Probability', 'fx: flashInOut', 0.4, 0, 1),
   F('fx/flashInOut/rate', 'Rate', 'fx: flashInOut', 0.5, 0.05, 4),
   // caseFlip
   F('fx/caseFlip/intensity', 'Intensity override', 'fx: caseFlip', -1, -1, 1),
   F('fx/caseFlip/rate', 'Flip rate', 'fx: caseFlip', 0.15, 0.02, 1),
   // scramble
   F('fx/scramble/intensity', 'Intensity override', 'fx: scramble', -1, -1, 1),
-  F('fx/scramble/rate', 'Scramble rate', 'fx: scramble', 0.4, 0.05, 2),
+  F('fx/scramble/rate', 'Scramble rate', 'fx: scramble', 0.6, 0.05, 2),
   F('fx/scramble/resolveTime', 'Resolve secs', 'fx: scramble', 1.2, 0.2, 5),
   // ghostEcho
   F('fx/ghostEcho/intensity', 'Intensity override', 'fx: ghostEcho', -1, -1, 1),
@@ -326,7 +329,8 @@ export const PARAM_DEFS: ParamDef[] = [
   F('fx/similarWords/flashDur', 'Flash secs', 'fx: similarWords', 1.6, 0.3, 5),
   // layoutReshuffle
   F('fx/layoutReshuffle/intensity', 'Intensity override', 'fx: layoutReshuffle', -1, -1, 1),
-  F('fx/layoutReshuffle/baseInterval', 'Base interval secs', 'fx: layoutReshuffle', 45, 5, 180, 1),
+  F('fx/layoutReshuffle/baseInterval', 'Base interval secs', 'fx: layoutReshuffle', 22, 5, 180, 1),
+  F('fx/layoutReshuffle/fullProb', 'Full rebuild prob', 'fx: layoutReshuffle', 0.3, 0, 1),
   // gridBreathe
   F('fx/gridBreathe/intensity', 'Intensity override', 'fx: gridBreathe', -1, -1, 1),
   F('fx/gridBreathe/amount', 'Breathe amount', 'fx: gridBreathe', 0.35, 0, 1),
