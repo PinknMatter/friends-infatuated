@@ -57,6 +57,17 @@ and captures screenshots (`SMOKE_SHOT_DIR` to redirect).
   morphs most of the time (`fx/layoutReshuffle/fullProb` controls the mix).
   `layout/rowBias` squeezes the layout into stacked rows (1 = all rows,
   0 = aspect-based grid).
+- **Generative scenes** (`src/phases/scenes.ts`): the scheduler rolls between
+  layout archetypes — monolith (2–5 huge), poster, columns, rows, mosaic,
+  wall (70–130 boxes, tiny uniform type) — sampling fresh values per visit
+  and writing them through the live params (the panel sliders follow).
+  Chaos weights the extremes. `phases/scenesEnabled` off freezes the layout
+  wherever it is for hand-tuning; `phases/nextScene` forces a roll.
+- **Sentence lifecycle** (`layout/lifecycle`): every box types its sentence
+  in, lives a randomized span (`lifeMin`–`lifeMax`, scene-retargeted), types
+  back out, and respawns with a fresh sentence from the pool — the screen
+  never sits still. Composes with the typewriter effect (smaller reveal
+  wins).
 - **Manual BPM is a hard override**: when `audio/useManualBpm` is on, beat
   detection neither sets the tempo nor re-anchors the beat grid.
 - **Tuning workflow**: turn `PHASES` off (phases section — the scheduler then

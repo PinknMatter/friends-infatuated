@@ -241,6 +241,14 @@ export const PARAM_DEFS: ParamDef[] = [
   F('layout/fontScale', 'Global text scale', 'layout', 1, 0.3, 1),
   I('layout/gutter', 'Gutter px', 'layout', 4, 0, 60),
   I('layout/padding', 'Text padding px', 'layout', 7, 0, 60),
+  // Sentence lifecycle: every box types its sentence in, lives a randomized
+  // span, types out, respawns with a fresh sentence. The screen never sits
+  // still. Scenes retarget the life range.
+  B('layout/lifecycle', 'Sentence lifecycle (type in/out)', 'layout', true),
+  F('layout/lifeMin', 'Life min secs', 'layout', 6, 1, 60),
+  F('layout/lifeMax', 'Life max secs', 'layout', 24, 2, 120),
+  F('layout/typeInSpeed', 'Type-in chars/sec', 'layout', 32, 5, 200, 1),
+  F('layout/typeOutSpeed', 'Type-out chars/sec', 'layout', 70, 5, 300, 1),
   F('layout/transitionDur', 'Transition secs', 'layout', 1.2, 0.1, 5),
   F('layout/morphDur', 'Grid morph secs', 'layout', 2.2, 0.2, 8),
   T('layout/reshuffle', 'Reshuffle now', 'layout'),
@@ -273,6 +281,11 @@ export const PARAM_DEFS: ParamDef[] = [
   // per-effect overrides run. This is tuning mode.
   B('phases/enabled', 'PHASES (off = manual tuning)', 'phases', true),
   F('phases/chaos', 'CHAOS', 'phases', 0.5, 0, 1),
+  // Generative layout scenes (monolith/poster/columns/rows/mosaic/wall).
+  B('phases/scenesEnabled', 'Generative layout scenes', 'phases', true),
+  I('phases/sceneMinBars', 'Min bars per scene', 'phases', 24, 4, 128),
+  F('phases/sceneSwitchProb', 'Scene switch prob per phase', 'phases', 0.45, 0, 1),
+  T('phases/nextScene', 'Force next scene', 'phases'),
   I('phases/durationBars', 'Phase duration bars', 'phases', 6, 1, 64),
   I('phases/minEffects', 'Effects per phase min', 'phases', 2, 1, 6),
   I('phases/maxEffects', 'Effects per phase max', 'phases', 5, 1, 8),

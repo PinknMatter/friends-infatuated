@@ -10,6 +10,7 @@ import type { Clock } from '../core/clock';
 import { RNG } from '../core/rng';
 import { EFFECTS, effectById, selectionWeight } from '../effects/registry';
 import type { EffectCtx } from '../effects/types';
+import { applyScene, pickScene } from './scenes';
 
 const POST_KEYS = ['rgbSplit', 'feedbackDecay', 'displacement', 'scanlines', 'noise', 'bloomish'] as const;
 const POST_CEILING: Record<(typeof POST_KEYS)[number], number> = {
@@ -42,6 +43,8 @@ export class PhaseScheduler {
   private phaseCounter = 0;
   private currentIntensities = new Map<string, number>();
   private postDrive: Record<string, number> = {};
+  private sceneName = 'poster';
+  private sceneStartBar = 0;
 
   constructor(params: ParamStore, clock: Clock) {
     this.params = params;
@@ -50,9 +53,22 @@ export class PhaseScheduler {
     this.phaseRng = this.rootRng.fork();
     this.current = this.generatePhase(0);
     params.onChange('phases/next', () => this.forceNext());
+    params.onChange('phases/nextScene', () => this.switchScene(true));
     params.onChange('master/seed', (v) => {
       this.rootRng = new RNG(Number(v));
     });
+    if (params.bool('phases/scenesEnabled')) this.switchScene(true);
+  }
+
+  /** Generative layout scenes: retarget the layout params + rebuild. */
+  private switchScene(force = false): void {
+    if (!force && !this.params.bool('phases/scenesEnabled')) return;
+    const chaos = this.params.num('phases/chaos');
+    const rng = this.rootRng.fork();
+    const scene = pickScene(rng, chaos, this.sceneName);
+    this.sceneName = scene.name;
+    this.sceneStartBar = this.clock.barPosition;
+    applyScene(scene, rng, this.params);
   }
 
   private generatePhase(startBar: number): Phase {
@@ -136,6 +152,14 @@ export class PhaseScheduler {
         effectById.get(id)?.onPhaseEnter?.(this.lastCtx);
       }
     }
+    // Maybe roll into a new layout scene alongside the new phase.
+    if (
+      this.params.bool('phases/scenesEnabled') &&
+      this.clock.barPosition - this.sceneStartBar >= this.params.num('phases/sceneMinBars') &&
+      this.rootRng.chance(this.params.num('phases/sceneSwitchProb'))
+    ) {
+      this.switchScene();
+    }
   }
 
   private lastCtx: EffectCtx | null = null;
@@ -208,6 +232,6 @@ export class PhaseScheduler {
   }
 
   get phaseName(): string {
-    return `#${this.current.index}`;
+    return `#${this.current.index} · ${this.sceneName}`;
   }
 }

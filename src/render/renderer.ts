@@ -214,6 +214,7 @@ export class Renderer {
     const innerH = rect.h - pad * 2;
     const boxAlpha = style.opacity * (1 - style.dim);
     if (boxAlpha <= 0.004) return;
+    if (box.lifeVisible === 0) return; // lifecycle: nothing typed yet
 
     const ctx2d = g.drawingContext as CanvasRenderingContext2D;
     g.push();
@@ -272,7 +273,12 @@ export class Renderer {
     const layout = box.layout!;
     const ctx2d = g.drawingContext as CanvasRenderingContext2D;
     const baseAlpha = ctx2d.globalAlpha;
-    const visible = style.visibleChars;
+    // Lifecycle reveal composes with effect-driven reveal (typewriter): the
+    // smaller cut wins.
+    let visible = style.visibleChars;
+    if (box.lifeVisible >= 0) {
+      visible = visible < 0 ? box.lifeVisible : Math.min(visible, box.lifeVisible);
+    }
 
     for (const line of layout.lines) {
       // Clamp tracking so the line never escapes the rect.

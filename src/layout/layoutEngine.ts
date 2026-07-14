@@ -28,6 +28,13 @@ export interface TextBox {
   style: BoxStyle;
   intensityOffset: number; // cascade writes this; renderer clamps per-frame
   contentChangedAt: number; // typewriter retrigger anchor
+  // Sentence lifecycle: type in → live (randomized span) → type out → respawn.
+  spawnAt: number; // when type-in starts (may be slightly in the future)
+  lifetime: number; // seconds of 'live' after type-in completes
+  outStart: number; // when type-out began (-1 = not dying)
+  /** Chars currently visible per the lifecycle; -1 = all (renderer min()s
+   *  this with effect-driven visibleChars). */
+  lifeVisible: number;
 }
 
 interface BoxAnim {
@@ -53,6 +60,7 @@ export class LayoutEngine {
   private reshufflePending = false;
   private morphPending = false;
   private morphStart = -Infinity;
+  private lifeRng = new RNG(0xf00d);
   private lastAddReshuffle = 0;
   private pendingAdds = 0;
   private stage: Rect = { x: 0, y: 0, w: 1920, h: 1080 };
@@ -102,6 +110,8 @@ export class LayoutEngine {
       this.lastAddReshuffle = time;
       this.reshufflePending = true;
     }
+
+    this.updateLifecycles(time);
 
     if (this.reshufflePending || this.tree === null) {
       this.reshufflePending = false;
@@ -195,10 +205,7 @@ export class LayoutEngine {
         box = oldAnims[bestIdx].box;
         fromRect = { ...box.rect };
         if (box.sentence !== sentence) {
-          box.sentence = sentence;
-          box.words = sentence.split(/\s+/).filter(Boolean);
-          box.contentChangedAt = time;
-          box.layout = null;
+          this.respawn(box, sentence, time);
         }
       } else {
         box = {
@@ -213,6 +220,10 @@ export class LayoutEngine {
           style: neutralStyle(),
           intensityOffset: 0,
           contentChangedAt: time,
+          spawnAt: time + this.lifeRng.range(0, 1.2), // stagger type-ins
+          lifetime: this.rollLifetime(),
+          outStart: -1,
+          lifeVisible: 0,
         };
         fromRect = { ...rect };
       }
@@ -221,6 +232,72 @@ export class LayoutEngine {
 
     this.anims = newAnims;
     this.boxes = newAnims.map((a) => a.box);
+  }
+
+  // ---- sentence lifecycle: type in → live → type out → respawn ----
+
+  private rollLifetime(): number {
+    const min = this.params.num('layout/lifeMin');
+    const max = Math.max(min, this.params.num('layout/lifeMax'));
+    return this.lifeRng.range(min, max);
+  }
+
+  private nextSentence(): string {
+    const pool = this.store.getAll();
+    const s = pool[this.sentenceCursor % pool.length];
+    this.sentenceCursor = (this.sentenceCursor + 1) % pool.length;
+    return s;
+  }
+
+  private respawn(box: TextBox, sentence: string, time: number): void {
+    box.sentence = sentence;
+    box.words = sentence.split(/\s+/).filter(Boolean);
+    box.contentChangedAt = time;
+    box.layout = null;
+    box.spawnAt = time + this.lifeRng.range(0.05, 0.7);
+    box.lifetime = this.rollLifetime();
+    box.outStart = -1;
+    box.lifeVisible = 0;
+  }
+
+  private updateLifecycles(time: number): void {
+    if (!this.params.bool('layout/lifecycle')) {
+      for (const box of this.boxes) box.lifeVisible = -1;
+      return;
+    }
+    const inSpeed = this.params.num('layout/typeInSpeed');
+    const outSpeed = this.params.num('layout/typeOutSpeed');
+    for (const box of this.boxes) {
+      const total = box.layout?.charCount ?? box.sentence.length;
+
+      if (box.outStart >= 0) {
+        // Typing out (backspace from the end).
+        const remaining = Math.floor(total - (time - box.outStart) * outSpeed);
+        if (remaining <= 0) {
+          this.respawn(box, this.nextSentence(), time);
+        } else {
+          box.lifeVisible = remaining;
+        }
+        continue;
+      }
+      if (time < box.spawnAt) {
+        box.lifeVisible = 0;
+        continue;
+      }
+      const typed = (time - box.spawnAt) * inSpeed;
+      if (typed < total) {
+        box.lifeVisible = Math.floor(typed);
+        continue;
+      }
+      // Fully typed: live until the randomized lifetime runs out.
+      const typeInDur = total / inSpeed;
+      if (time > box.spawnAt + typeInDur + box.lifetime) {
+        box.outStart = time;
+        box.lifeVisible = total;
+      } else {
+        box.lifeVisible = -1;
+      }
+    }
   }
 
   private applyGutter(r: Rect): Rect {
