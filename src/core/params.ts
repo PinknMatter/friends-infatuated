@@ -254,7 +254,7 @@ export const PARAM_DEFS: ParamDef[] = [
   F('audio/highBoost', 'High band boost', 'audio', 3.2, 0.5, 6),
   F('audio/attack', 'Band attack', 'audio', 0.5, 0.01, 1),
   F('audio/release', 'Band release', 'audio', 0.08, 0.01, 1),
-  F('audio/beatSensitivity', 'Beat sensitivity', 'audio', 1.4, 1, 3),
+  F('audio/beatSensitivity', 'Beat sensitivity', 'audio', 1.25, 1, 3),
   B('audio/beatMonitor', 'Beat monitor on projector output', 'audio', false),
   F('audio/manualBpm', 'Manual BPM', 'audio', 128, 60, 200, 0.5),
   B('audio/useManualBpm', 'MANUAL BPM (overrides detection)', 'audio', true),

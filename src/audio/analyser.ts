@@ -27,6 +27,7 @@ export class AudioAnalyser {
   private smoothed = { low: 0, mid: 0, high: 0, energy: 0 };
   private lowHistory: number[] = [];
   private lastBeatAt = -10;
+  private prevRawLow = 0;
   private detectedBeatThisFrame = false;
 
   mode: 'mic' | 'file' = 'mic';
@@ -214,16 +215,20 @@ export class AudioAnalyser {
       const sensitivity = this.params.num('audio/beatSensitivity');
       this.monitor.rawLow = raw.low;
       this.monitor.avg = avg;
-      this.monitor.threshold = Math.max(avg * sensitivity, 0.08);
+      this.monitor.threshold = Math.max(avg * sensitivity, 0.06);
+      // Rising-edge requirement lets the threshold sit lower (more hits on
+      // real kicks) without sustained bass re-triggering after refractory.
+      const rising = raw.low > this.prevRawLow * 1.02;
       if (
-        raw.low > avg * sensitivity &&
-        raw.low > 0.08 &&
+        raw.low > this.monitor.threshold &&
+        rising &&
         time - this.lastBeatAt > BEAT_REFRACTORY
       ) {
         this.lastBeatAt = time;
         this.detectedBeatThisFrame = true;
         this.clock.reportDetectedBeat(time);
       }
+      this.prevRawLow = raw.low;
     }
 
     return {

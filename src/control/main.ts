@@ -43,7 +43,10 @@ transport.onMessage((msg) => {
   if (msg.type === 'status') {
     lastStatusTime = performance.now();
     lastStatus = msg.payload;
-    if (msg.payload.detected) lastDetectedAt = performance.now();
+    if (msg.payload.detected) {
+      lastDetectedAt = performance.now();
+      detTimes.push(lastDetectedAt);
+    }
     if (msg.payload.beat) lastGridAt = performance.now();
   } else if (msg.type === 'log') {
     const log = el('log');
@@ -60,6 +63,7 @@ const beatmon = el('beatmon') as HTMLCanvasElement;
 const beatmonCtx = beatmon.getContext('2d')!;
 let lastDetectedAt = -10;
 let lastGridAt = -10;
+const detTimes: number[] = []; // rolling window of detection timestamps
 
 function renderStatus(): void {
   const connected = performance.now() - lastStatusTime < 3000;
@@ -127,9 +131,10 @@ function drawBeatMonitor(): void {
   c.fillRect(barX, 8, barW * Math.min(1, mon.rawLow), 12);
   c.fillStyle = '#e5484d';
   c.fillRect(barX + barW * Math.min(1, mon.threshold) - 1, 5, 3, 18);
+  while (detTimes.length > 0 && now - detTimes[0] > 5000) detTimes.shift();
   c.fillStyle = '#888';
   c.fillText(
-    `low ${mon.rawLow.toFixed(2)} thresh ${mon.threshold.toFixed(2)}`,
+    `low ${mon.rawLow.toFixed(2)} thresh ${mon.threshold.toFixed(2)}  ${detTimes.length} det/5s`,
     barX,
     32,
   );

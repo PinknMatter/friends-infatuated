@@ -69,10 +69,11 @@ export class Clock {
         }
       }
     }
-    // Re-anchor the grid to every detected beat so subdivisions (beatPos)
-    // stay phase-locked to the actual kicks.
-    this.phaseOrigin = time;
-    this.beatPosition = Math.round(this.beatPosition);
+    // Re-anchor the grid PHASE to the detected kick while preserving the
+    // accumulated beat count — bars must keep advancing or the phase
+    // scheduler freezes in auto mode.
+    const nearest = Math.round(this.beatPosition);
+    this.phaseOrigin = time - nearest * this.beatDuration;
     this.lastBeatTime = time;
   }
 
