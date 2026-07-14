@@ -311,6 +311,7 @@ export class Renderer {
           effects: this.scheduler.activeEffects(),
           beat: this.beatSinceStatus,
           bpm: Math.round(this.clock.bpm * 10) / 10,
+          bpmMode: this.params.bool('audio/useManualBpm') ? 'manual' : 'auto',
           boxCount: this.layout.boxes.length,
           audioStatus: this.audio.status,
           bands: this.lastAudio.bands,

@@ -62,7 +62,7 @@ function renderStatus(): void {
   if (lastStatus) {
     el('fps').textContent = `${lastStatus.fps} fps`;
     el('phase').textContent = `phase ${lastStatus.phase} · ${lastStatus.boxCount} boxes`;
-    el('bpm').textContent = `${lastStatus.bpm} bpm`;
+    el('bpm').textContent = `${lastStatus.bpm} bpm (${lastStatus.bpmMode})`;
     el('audioStatus').textContent = `audio: ${lastStatus.audioStatus}`;
     el('effects').textContent = lastStatus.effects
       .map((e) => `${e.id} ${(e.intensity * 100) | 0}%`)

@@ -1,9 +1,14 @@
-// Beat/bar clock. Derives BPM from detected beats when confident;
-// manual BPM + tap tempo is the (non-optional) fallback for messy rave audio.
+// Beat/bar clock with two strict modes:
+//  - MANUAL (audio/useManualBpm on): grid runs at the manual BPM, detection
+//    is ignored entirely.
+//  - AUTO (off): beats fire only on DETECTED beats; tempo is estimated from
+//    detected intervals (falling back to a neutral 120 until beats arrive).
+//    The manual BPM param is completely out of the loop.
 
 import type { ParamStore } from './params';
 
 const BEATS_PER_BAR = 4;
+const DEFAULT_AUTO_BPM = 120; // neutral grid tempo before any detection lands
 
 export class Clock {
   private params: ParamStore;
@@ -24,10 +29,11 @@ export class Clock {
   }
 
   get bpm(): number {
-    if (this.params.bool('audio/useManualBpm') || this.detectedBpm === 0) {
+    if (this.params.bool('audio/useManualBpm')) {
       return this.params.num('audio/manualBpm');
     }
-    return this.detectedBpm;
+    // Auto mode: manual BPM is disabled — detection or the neutral default.
+    return this.detectedBpm > 0 ? this.detectedBpm : DEFAULT_AUTO_BPM;
   }
 
   get beatDuration(): number {
@@ -38,29 +44,35 @@ export class Clock {
     return this.beatDuration * BEATS_PER_BAR;
   }
 
+  private detectedThisFrame = false;
+
   /** Called by the audio analyser when it detects a beat. */
   reportDetectedBeat(time: number): void {
     // Manual BPM is a hard override: detection must not re-anchor the beat
     // grid or feed the detected tempo while the switch is on.
     if (this.params.bool('audio/useManualBpm')) return;
+    this.detectedThisFrame = true;
     if (this.lastBeatTime > 0) {
       const interval = time - this.lastBeatTime;
       if (interval > 0.25 && interval < 1.2) {
         this.beatIntervals.push(interval);
         if (this.beatIntervals.length > 16) this.beatIntervals.shift();
-        if (this.beatIntervals.length >= 8) {
+        if (this.beatIntervals.length >= 4) {
           const sorted = [...this.beatIntervals].sort((a, b) => a - b);
           const median = sorted[Math.floor(sorted.length / 2)];
-          // Confidence check: most intervals near the median.
-          const near = this.beatIntervals.filter((i) => Math.abs(i - median) < 0.04).length;
-          if (near >= this.beatIntervals.length * 0.6) {
+          // Real-music detectors are noisy — accept when half the intervals
+          // sit near the median.
+          const near = this.beatIntervals.filter((i) => Math.abs(i - median) < 0.06).length;
+          if (near >= this.beatIntervals.length * 0.5) {
             this.detectedBpm = 60 / median;
-            this.phaseOrigin = time; // re-anchor beat grid to the detected beat
-            this.beatPosition = Math.round(this.beatPosition);
           }
         }
       }
     }
+    // Re-anchor the grid to every detected beat so subdivisions (beatPos)
+    // stay phase-locked to the actual kicks.
+    this.phaseOrigin = time;
+    this.beatPosition = Math.round(this.beatPosition);
     this.lastBeatTime = time;
   }
 
@@ -84,7 +96,14 @@ export class Clock {
   update(time: number): void {
     const prev = this.beatPosition;
     this.beatPosition = (time - this.phaseOrigin) / this.beatDuration;
-    this.beatThisFrame = Math.floor(this.beatPosition) > Math.floor(prev);
+    if (this.params.bool('audio/useManualBpm')) {
+      // Manual: beats fire on grid crossings, metronome-style.
+      this.beatThisFrame = Math.floor(this.beatPosition) > Math.floor(prev);
+    } else {
+      // Auto: beats fire ONLY on actually detected beats — silence = no beats.
+      this.beatThisFrame = this.detectedThisFrame;
+      this.detectedThisFrame = false;
+    }
   }
 
   get barPosition(): number {

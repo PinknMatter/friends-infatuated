@@ -18,6 +18,7 @@ export interface StatusPayload {
   effects: { id: string; intensity: number }[];
   beat: boolean;
   bpm: number;
+  bpmMode: 'manual' | 'auto';
   boxCount: number;
   audioStatus: string;
   bands: { low: number; mid: number; high: number };
