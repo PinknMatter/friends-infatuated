@@ -30,8 +30,8 @@ export interface TextLayout {
 }
 
 const LINE_HEIGHT_FACTOR = 1.06; // tight — rows should read squeezed together
-const MIN_SIZE = 9;
-const MAX_SIZE = 260;
+const MIN_SIZE = 5; // tiny boxes at 100+ box counts still need to fit
+const MAX_SIZE = 400;
 
 const cache = new Map<string, TextLayout>();
 
@@ -40,8 +40,9 @@ export function clearFitCache(): void {
 }
 
 /**
- * Largest font size such that `text` wraps inside w×h. Returns the full
- * word-positioned layout. `g` must already have the target font set.
+ * Largest font size such that `text` wraps inside w×h, capped at `maxSize`.
+ * Returns the full word-positioned layout. `g` must already have the target
+ * font set.
  */
 export function fitText(
   g: p5.Graphics,
@@ -49,16 +50,18 @@ export function fitText(
   w: number,
   h: number,
   fontId: string,
+  maxSize: number = MAX_SIZE,
 ): TextLayout {
   // Bucket rect size to 4px so tween frames hit the cache.
   const bw = Math.max(8, Math.round(w / 4) * 4);
   const bh = Math.max(8, Math.round(h / 4) * 4);
-  const key = `${fontId}|${bw}x${bh}|${text}`;
+  const cap = Math.max(MIN_SIZE, Math.min(MAX_SIZE, Math.round(maxSize)));
+  const key = `${fontId}|${bw}x${bh}|${cap}|${text}`;
   const hit = cache.get(key);
   if (hit) return hit;
 
   let lo = MIN_SIZE;
-  let hi = MAX_SIZE;
+  let hi = cap;
   let best: TextLayout | null = null;
   while (lo <= hi) {
     const mid = Math.floor((lo + hi) / 2);

@@ -63,6 +63,9 @@ export class LayoutEngine {
     this.stage = { x: 0, y: 0, w: width, h: height };
     params.onChange('layout/reshuffle', () => this.requestReshuffle());
     params.onChange('layout/morph', () => this.requestMorph());
+    params.onChange('layout/maxFontPx', () => {
+      for (const box of this.boxes) box.layout = null; // force refit at new cap
+    });
     store.onAdded(() => {
       this.pendingAdds++;
     });
@@ -254,7 +257,14 @@ export class LayoutEngine {
         Math.abs(innerW - box.fitW) > 3 ||
         Math.abs(innerH - box.fitH) > 3
       ) {
-        box.layout = fitText(g, box.sentence, innerW, innerH, box.fontId);
+        box.layout = fitText(
+          g,
+          box.sentence,
+          innerW,
+          innerH,
+          box.fontId,
+          this.params.num('layout/maxFontPx'),
+        );
         box.fitW = innerW;
         box.fitH = innerH;
       }

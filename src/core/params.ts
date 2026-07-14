@@ -228,13 +228,17 @@ export const PARAM_DEFS: ParamDef[] = [
   E('master/fontId', 'Font', 'master', 'main', ['main']),
 
   // ---- layout ----
-  I('layout/minBoxes', 'Min boxes', 'layout', 10, 2, 40),
-  I('layout/maxBoxes', 'Max boxes', 'layout', 22, 2, 40),
+  I('layout/minBoxes', 'Min boxes', 'layout', 10, 2, 120),
+  I('layout/maxBoxes', 'Max boxes', 'layout', 22, 2, 150),
   F('layout/rowBias', 'Row bias (rows vs grid)', 'layout', 0.75, 0, 1),
   F('layout/splitBiasLow', 'Split ratio min', 'layout', 0.3, 0.1, 0.5),
   F('layout/splitBiasHigh', 'Split ratio max', 'layout', 0.7, 0.5, 0.9),
-  I('layout/minBoxW', 'Min box width px', 'layout', 260, 80, 600),
-  I('layout/minBoxH', 'Min box height px', 'layout', 56, 30, 400),
+  I('layout/minBoxW', 'Min box width px', 'layout', 260, 36, 600),
+  I('layout/minBoxH', 'Min box height px', 'layout', 56, 18, 400),
+  // Text sizing: cap stops big boxes from getting giant type (uniform dense
+  // look for high box counts); scale shrinks everything inside its fit.
+  I('layout/maxFontPx', 'Max font size px', 'layout', 200, 8, 400),
+  F('layout/fontScale', 'Global text scale', 'layout', 1, 0.3, 1),
   I('layout/gutter', 'Gutter px', 'layout', 4, 0, 60),
   I('layout/padding', 'Text padding px', 'layout', 7, 0, 60),
   F('layout/transitionDur', 'Transition secs', 'layout', 1.2, 0.1, 5),

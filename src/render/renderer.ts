@@ -226,12 +226,14 @@ export class Renderer {
       g.rect(rect.x, rect.y, rect.w, rect.h);
     }
 
-    // sizeScale shrinks around the rect center — fitted size is the ceiling.
-    if (style.sizeScale < 0.999) {
+    // sizeScale × global fontScale shrink around the rect center — the fitted
+    // size is always the ceiling, so text can never escape its rect.
+    const scale = Math.min(1, style.sizeScale) * this.params.num('layout/fontScale');
+    if (scale < 0.999) {
       const cx = rect.x + rect.w / 2;
       const cy = rect.y + rect.h / 2;
       g.translate(cx, cy);
-      g.scale(Math.min(1, style.sizeScale));
+      g.scale(scale);
       g.translate(-cx, -cy);
     }
 
