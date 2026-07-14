@@ -344,11 +344,18 @@ export const PARAM_DEFS: ParamDef[] = [
   // asciiCamera
   F('fx/asciiCamera/intensity', 'Intensity override', 'fx: asciiCamera', -1, -1, 1),
   I('fx/asciiCamera/cellSize', 'Cell size px', 'fx: asciiCamera', 14, 6, 40),
-  E('fx/asciiCamera/tint', 'Tint', 'fx: asciiCamera', '#2a5a4a', [
+  B('fx/asciiCamera/useSentences', 'Text becomes the ascii', 'fx: asciiCamera', true),
+  F('fx/asciiCamera/fadeText', 'Fade boxes into ascii', 'fx: asciiCamera', 0.9, 0, 1),
+  F('fx/asciiCamera/flowSpeed', 'Text flow chars/sec', 'fx: asciiCamera', 6, 0, 40, 1),
+  F('fx/asciiCamera/threshold', 'Luminance threshold', 'fx: asciiCamera', 0.13, 0, 0.5),
+  // Bright defaults: in sentence mode the ascii IS the foreground.
+  E('fx/asciiCamera/tint', 'Tint', 'fx: asciiCamera', '#9fe8cf', [
+    '#9fe8cf',
+    '#d1f7ff',
+    '#f9f002',
+    '#ff2a6d',
+    '#ffffff',
     '#2a5a4a',
-    '#3a3a6a',
-    '#5a2a2a',
-    '#3f3f3f',
   ]),
   // strobeInvert (photosensitivity: hard clamp at 4 flashes/sec)
   F('fx/strobeInvert/intensity', 'Intensity override', 'fx: strobeInvert', -1, -1, 1),
