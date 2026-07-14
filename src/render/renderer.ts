@@ -40,6 +40,7 @@ export class Renderer {
     energy: 0,
   };
   private beatSinceStatus = false;
+  private detectedSinceStatus = false;
 
   constructor(opts: {
     g: p5.Graphics;
@@ -74,6 +75,7 @@ export class Renderer {
     const audioFrame: AudioFrame = this.audio.update(time, dt);
     this.lastAudio = audioFrame;
     if (audioFrame.beat) this.beatSinceStatus = true;
+    if (this.audio.detectedBeat) this.detectedSinceStatus = true;
 
     if (!paused) {
       resetFrameFlags();
@@ -356,9 +358,10 @@ export class Renderer {
       this.fpsFrames = 0;
       this.fpsWindowStart = time;
     }
-    // 4Hz so the control-panel meter is usable for tuning; fps value itself
-    // still integrates over 1s windows.
-    if (time - this.lastStatusAt >= 0.25) {
+    // 20Hz so the control panel's beat monitor and meters read smoothly;
+    // fps value itself still integrates over 1s windows. BroadcastChannel is
+    // same-machine, the payload is a few hundred bytes — this is cheap.
+    if (time - this.lastStatusAt >= 0.05) {
       this.lastStatusAt = time;
       this.transport.send({
         type: 'status',
@@ -367,6 +370,8 @@ export class Renderer {
           phase: this.scheduler.phaseName,
           effects: this.scheduler.activeEffects(),
           beat: this.beatSinceStatus,
+          detected: this.detectedSinceStatus,
+          monitor: { ...this.audio.monitor },
           bpm: Math.round(this.clock.bpm * 10) / 10,
           bpmMode: this.params.bool('audio/useManualBpm') ? 'manual' : 'auto',
           boxCount: this.layout.boxes.length,
@@ -376,6 +381,7 @@ export class Renderer {
         },
       });
       this.beatSinceStatus = false;
+      this.detectedSinceStatus = false;
     }
   }
 }

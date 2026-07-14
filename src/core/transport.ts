@@ -16,7 +16,9 @@ export interface StatusPayload {
   fps: number;
   phase: string;
   effects: { id: string; intensity: number }[];
-  beat: boolean;
+  beat: boolean; // grid beat fired since last status (what effects consume)
+  detected: boolean; // raw detection event fired since last status
+  monitor: { rawLow: number; avg: number; threshold: number };
   bpm: number;
   bpmMode: 'manual' | 'auto';
   boxCount: number;

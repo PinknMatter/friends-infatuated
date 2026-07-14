@@ -43,6 +43,8 @@ transport.onMessage((msg) => {
   if (msg.type === 'status') {
     lastStatusTime = performance.now();
     lastStatus = msg.payload;
+    if (msg.payload.detected) lastDetectedAt = performance.now();
+    if (msg.payload.beat) lastGridAt = performance.now();
   } else if (msg.type === 'log') {
     const log = el('log');
     const line = document.createElement('div');
@@ -54,6 +56,10 @@ transport.onMessage((msg) => {
 
 const meter = el('meter') as HTMLCanvasElement;
 const meterCtx = meter.getContext('2d')!;
+const beatmon = el('beatmon') as HTMLCanvasElement;
+const beatmonCtx = beatmon.getContext('2d')!;
+let lastDetectedAt = -10;
+let lastGridAt = -10;
 
 function renderStatus(): void {
   const connected = performance.now() - lastStatusTime < 3000;
@@ -71,6 +77,7 @@ function renderStatus(): void {
       el('beat').classList.add('on');
       setTimeout(() => el('beat').classList.remove('on'), 120);
     }
+    drawBeatMonitor();
     // Meter strip: low / mid / high / energy.
     const bands = [lastStatus.bands.low, lastStatus.bands.mid, lastStatus.bands.high, lastStatus.energy];
     const colors = ['#e5484d', '#f0b429', '#3b9eff', '#8f8f8f'];
@@ -84,6 +91,49 @@ function renderStatus(): void {
   requestAnimationFrame(renderStatus);
 }
 renderStatus();
+
+/** Beat-detection widget: red dot = raw detection event, yellow dot = grid
+ *  beat (what effects consume), bar = live low band vs threshold tick. */
+function drawBeatMonitor(): void {
+  if (!lastStatus) return;
+  const c = beatmonCtx;
+  const w = beatmon.width;
+  const h = beatmon.height;
+  const now = performance.now();
+  c.clearRect(0, 0, w, h);
+
+  const detGlow = Math.max(0, 1 - (now - lastDetectedAt) / 200);
+  const gridGlow = Math.max(0, 1 - (now - lastGridAt) / 200);
+  c.fillStyle = `rgb(${Math.round(70 + 185 * detGlow)},30,40)`;
+  c.beginPath();
+  c.arc(14, 13, 8 + 3 * detGlow, 0, Math.PI * 2);
+  c.fill();
+  c.fillStyle = `rgb(${Math.round(80 + 160 * gridGlow)},${Math.round(70 + 110 * gridGlow)},20)`;
+  c.beginPath();
+  c.arc(38, 13, 8 + 3 * gridGlow, 0, Math.PI * 2);
+  c.fill();
+
+  c.fillStyle = '#bbb';
+  c.font = '10px ui-monospace, monospace';
+  c.fillText('det  grid', 6, 32);
+
+  // Low band vs threshold: a beat fires when the white bar crosses the tick.
+  const mon = lastStatus.monitor;
+  const barX = 66;
+  const barW = w - barX - 8;
+  c.fillStyle = '#2a2a2a';
+  c.fillRect(barX, 8, barW, 12);
+  c.fillStyle = '#e8e8e8';
+  c.fillRect(barX, 8, barW * Math.min(1, mon.rawLow), 12);
+  c.fillStyle = '#e5484d';
+  c.fillRect(barX + barW * Math.min(1, mon.threshold) - 1, 5, 3, 18);
+  c.fillStyle = '#888';
+  c.fillText(
+    `low ${mon.rawLow.toFixed(2)} thresh ${mon.threshold.toFixed(2)}`,
+    barX,
+    32,
+  );
+}
 
 // Re-request state sync every few seconds until connected (render window may
 // open after the panel).

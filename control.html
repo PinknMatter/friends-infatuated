@@ -25,6 +25,7 @@
       #beat.on { background: #f0b429; }
       #effects { flex-basis: 100%; color: #888; }
       #meter { background: #0a0a0a; border: 1px solid #2c2c2c; }
+      #beatmon { background: #0a0a0a; border: 1px solid #2c2c2c; }
       /* Fixed columns, all sections open, each column scrolls independently:
          the panel is a static map — nothing ever moves. */
       #panel {
@@ -75,6 +76,7 @@
       <span id="audioStatus">audio: idle</span>
       <div id="beat"></div>
       <canvas id="meter" width="120" height="34"></canvas>
+      <canvas id="beatmon" width="260" height="40" title="beat detection: red = detected, yellow = grid beat, bar = low band vs threshold"></canvas>
       <button id="scanDevices">scan audio devices</button>
       <span id="effects"></span>
     </div>
