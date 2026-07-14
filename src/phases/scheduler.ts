@@ -143,7 +143,10 @@ export class PhaseScheduler {
   /** Advance phase state; call once per frame before effects run. */
   update(ctx: EffectCtx): void {
     this.lastCtx = ctx;
-    const frozen = this.params.bool('phases/freeze');
+    // phases/enabled off = manual tuning mode: the scheduler contributes
+    // nothing; only fx/<id>/intensity overrides drive effects.
+    const enabled = this.params.bool('phases/enabled');
+    const frozen = this.params.bool('phases/freeze') || !enabled;
 
     if (!frozen) {
       const elapsed = this.clock.barPosition - this.current.startedAtBar;
@@ -168,11 +171,14 @@ export class PhaseScheduler {
     for (const effect of EFFECTS) {
       const from = this.previous?.effects.get(effect.id) ?? 0;
       const to = this.current.effects.get(effect.id) ?? 0;
-      let intensity = from + (to - from) * fadeT;
+      let intensity = enabled ? from + (to - from) * fadeT : 0;
 
       // Manual override wins over the scheduler until cleared (set back to -1).
       const override = this.params.num(`fx/${effect.id}/intensity`);
       if (override >= 0) intensity = override;
+
+      // Hard per-effect kill switch — beats scheduler AND override.
+      if (!this.params.bool(`fx/${effect.id}/enabled`)) intensity = 0;
 
       if (soloing && effect.wantsSolo !== true && intensity > 0) {
         intensity *= 0.25;
@@ -180,11 +186,11 @@ export class PhaseScheduler {
       if (intensity > 0.001) this.currentIntensities.set(effect.id, intensity);
     }
 
-    // Post drive crossfades the same way.
+    // Post drive crossfades the same way (silent in manual tuning mode).
     for (const key of POST_KEYS) {
       const from = this.previous?.post[key] ?? 0;
       const to = this.current.post[key] ?? 0;
-      this.postDrive[key] = from + (to - from) * fadeT;
+      this.postDrive[key] = enabled ? from + (to - from) * fadeT : 0;
     }
   }
 

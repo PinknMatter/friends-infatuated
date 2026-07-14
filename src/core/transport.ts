@@ -8,7 +8,9 @@ export type TransportMessage =
   | { type: 'sync-request' }
   | { type: 'sync-state'; state: Record<string, number | boolean | string> }
   | { type: 'status'; payload: StatusPayload }
-  | { type: 'log'; text: string };
+  | { type: 'log'; text: string }
+  // Uploaded audio file (control panel → render window, structured clone).
+  | { type: 'audio-file'; name: string; buffer: ArrayBuffer };
 
 export interface StatusPayload {
   fps: number;

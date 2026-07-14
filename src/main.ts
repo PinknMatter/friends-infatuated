@@ -37,6 +37,20 @@ const layout = new LayoutEngine(params, store, W, H);
 const audio = new AudioAnalyser(params, clock);
 const scheduler = new PhaseScheduler(params, clock);
 
+// Audio file uploaded from the control panel → play + analyse here.
+transport.onMessage((msg) => {
+  if (msg.type !== 'audio-file') return;
+  audio
+    .playFile(msg.buffer, msg.name)
+    .then(() => transport.send({ type: 'log', text: `audio file playing: ${msg.name}` }))
+    .catch(() =>
+      transport.send({
+        type: 'log',
+        text: 'audio file failed — click the render window once, then re-upload',
+      }),
+    );
+});
+
 params.onChange('master/seed', () => layout.requestReshuffle());
 
 new p5((p: p5) => {

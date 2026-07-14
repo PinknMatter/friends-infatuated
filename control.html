@@ -43,6 +43,22 @@
       .row button:hover, #presets button:hover { background: #2e2e2e; }
       #presets { display: flex; gap: 6px; margin-bottom: 8px; flex-wrap: wrap; align-items: center; }
       #presets select { background: #222; color: #eee; border: 1px solid #333; padding: 4px; }
+      .filebtn {
+        background: #26224a; color: #cfc7ff; border: 1px solid #4a3f8f;
+        padding: 4px 10px; cursor: pointer;
+      }
+      .filebtn:hover { background: #322c60; }
+      #mixer {
+        max-width: 560px; margin-bottom: 8px;
+        border: 1px solid #3a2f6f; background: #17142a; padding: 6px 10px;
+      }
+      #mixer h3 { color: #b8a8ff; font-size: 12px; margin-bottom: 4px; }
+      .mixrow { display: flex; align-items: center; gap: 8px; padding: 2px 0; }
+      .mixrow label { width: 140px; color: #aaa; flex-shrink: 0; cursor: pointer; }
+      .mixrow input[type='range'] { flex: 1; accent-color: #8f7aff; }
+      .mixrow .val { width: 44px; text-align: right; color: #eee; }
+      .mixrow.master { border-bottom: 1px solid #3a2f6f; padding-bottom: 6px; margin-bottom: 6px; }
+      .mixrow.master label { color: #d8ceff; font-weight: bold; width: auto; }
       #log {
         margin-top: 10px; max-width: 560px; max-height: 140px; overflow-y: auto;
         color: #777; border-top: 1px solid #2a2a2a; padding-top: 6px;
@@ -67,7 +83,10 @@
       <select id="presetList"></select>
       <button id="presetLoad">load</button>
       <button id="presetDelete">delete</button>
+      <label for="audioFile" class="filebtn">upload audio ♫</label>
+      <input id="audioFile" type="file" accept="audio/*" style="display: none" />
     </div>
+    <div id="mixer"></div>
     <div id="panel"></div>
     <div id="log"></div>
     <script type="module" src="/src/control/main.ts"></script>

@@ -255,8 +255,15 @@ export const PARAM_DEFS: ParamDef[] = [
   F('audio/manualBpm', 'Manual BPM', 'audio', 128, 60, 200, 0.5),
   B('audio/useManualBpm', 'MANUAL BPM (overrides detection)', 'audio', true),
   T('audio/tapTempo', 'Tap tempo', 'audio'),
+  // audio file playback (uploaded from the control panel for tuning)
+  B('audio/fileLoop', 'Loop audio file', 'audio', true),
+  F('audio/fileVolume', 'File monitor volume', 'audio', 0.9, 0, 1),
+  T('audio/fileStop', 'Stop file → live input', 'audio'),
 
   // ---- phases ----
+  // Master switch: off = the scheduler contributes nothing; only manual
+  // per-effect overrides run. This is tuning mode.
+  B('phases/enabled', 'PHASES (off = manual tuning)', 'phases', true),
   F('phases/chaos', 'CHAOS', 'phases', 0.5, 0, 1),
   I('phases/durationBars', 'Phase duration bars', 'phases', 6, 1, 64),
   I('phases/minEffects', 'Effects per phase min', 'phases', 2, 1, 6),
@@ -361,3 +368,29 @@ export const PARAM_DEFS: ParamDef[] = [
   F('fx/strobeInvert/intensity', 'Intensity override', 'fx: strobeInvert', -1, -1, 1),
   F('fx/strobeInvert/maxRate', 'Max flashes/sec', 'fx: strobeInvert', 2, 0.5, 4),
 ];
+
+/** Every effect id — used to generate per-effect enable switches and by the
+ *  control panel's FX mixer. Must match src/effects/registry.ts. */
+export const FX_IDS = [
+  'typewriter',
+  'wordBoxHighlight',
+  'wordColor',
+  'sizePulse',
+  'letterSpacingDrift',
+  'justifyShift',
+  'flashInOut',
+  'caseFlip',
+  'scramble',
+  'ghostEcho',
+  'similarWords',
+  'layoutReshuffle',
+  'gridBreathe',
+  'spotlight',
+  'cascade',
+  'asciiCamera',
+  'strobeInvert',
+] as const;
+
+for (const id of FX_IDS) {
+  PARAM_DEFS.push(B(`fx/${id}/enabled`, 'Enabled', `fx: ${id}`, true));
+}

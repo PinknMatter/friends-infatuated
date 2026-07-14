@@ -59,6 +59,17 @@ and captures screenshots (`SMOKE_SHOT_DIR` to redirect).
   0 = aspect-based grid).
 - **Manual BPM is a hard override**: when `audio/useManualBpm` is on, beat
   detection neither sets the tempo nor re-anchors the beat grid.
+- **Tuning workflow**: the FX MIXER at the top of the control panel. Turn
+  `PHASES` off (scheduler contributes nothing), then bring effects in one at
+  a time — each row has a hard enable switch and an intensity slider
+  (`auto` = scheduler-driven, 0–1 = manual). "clear all overrides" resets
+  every slider to auto. Per-effect knobs live in the `fx:` sections below.
+- **Audio file upload**: "upload audio ♫" in the control panel sends the file
+  to the render window, which decodes and loops it through the same
+  gain → analyser chain as live input (bands + beat detect behave
+  identically) and monitors it to the speakers (`audio/fileVolume`).
+  `Stop file → live input` returns to the mic/line-in. Requires one click in
+  the render window first (browser audio gesture rule).
 - Fonts: every box carries a `fontId` resolved via `src/core/fonts.ts` (one
   entry today). NOTE: p5 quote-wraps the whole `textFont` string, so entries
   must be a single family name, not a CSS stack.
