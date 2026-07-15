@@ -193,21 +193,21 @@ export class Renderer {
     g.fill(220);
     g.text(`det   grid   ${audio.bpm.toFixed(1)} bpm (${this.params.bool('audio/useManualBpm') ? 'manual' : 'auto'})`, x + 62, y + 23);
 
-    // Low-band level bar vs detection threshold: the beat fires when the
-    // white bar jumps past the red tick.
+    // Onset flux vs threshold (relative display, tick fixed at 40%): the
+    // beat fires when the white bar jumps past the red tick.
     const barY = y + 38;
     const barW = w - 24;
+    const fluxScale = mon.threshold > 0 ? 0.4 / mon.threshold : 0;
     g.fill(50);
     g.rect(x + 12, barY, barW, 12);
     g.fill(230);
-    g.rect(x + 12, barY, barW * Math.min(1, mon.rawLow), 12);
+    g.rect(x + 12, barY, barW * Math.min(1, mon.rawLow * fluxScale), 12);
     g.fill(255, 60, 70);
-    const tickX = x + 12 + barW * Math.min(1, mon.threshold);
-    g.rect(tickX - 1, barY - 3, 3, 18);
+    g.rect(x + 12 + barW * 0.4 - 1, barY - 3, 3, 18);
 
     g.fill(150);
     g.textSize(11);
-    g.text(`low ${mon.rawLow.toFixed(2)}  avg ${mon.avg.toFixed(2)}  thresh ${mon.threshold.toFixed(2)}  ${this.audio.status}`, x + 12, y + h - 8);
+    g.text(`flux ${mon.rawLow.toFixed(3)}  thr ${mon.threshold.toFixed(3)}  ${this.audio.status}`, x + 12, y + h - 8);
     g.pop();
   }
 

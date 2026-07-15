@@ -126,20 +126,22 @@ function drawBeatMonitor(): void {
   c.font = '10px ui-monospace, monospace';
   c.fillText('det  grid', 6, 32);
 
-  // Low band vs threshold: a beat fires when the white bar crosses the tick.
+  // Onset flux vs threshold, drawn RELATIVE to the threshold (tick fixed at
+  // 40%): a beat fires when the white bar crosses the tick — at any gain.
   const mon = lastStatus.monitor;
   const barX = 66;
   const barW = w - barX - 8;
+  const scale = mon.threshold > 0 ? 0.4 / mon.threshold : 0;
   c.fillStyle = '#2a2a2a';
   c.fillRect(barX, 8, barW, 12);
   c.fillStyle = '#e8e8e8';
-  c.fillRect(barX, 8, barW * Math.min(1, mon.rawLow), 12);
+  c.fillRect(barX, 8, barW * Math.min(1, mon.rawLow * scale), 12);
   c.fillStyle = '#e5484d';
-  c.fillRect(barX + barW * Math.min(1, mon.threshold) - 1, 5, 3, 18);
+  c.fillRect(barX + barW * 0.4 - 1, 5, 3, 18);
   while (detTimes.length > 0 && now - detTimes[0] > 5000) detTimes.shift();
   c.fillStyle = '#888';
   c.fillText(
-    `low ${mon.rawLow.toFixed(2)} thresh ${mon.threshold.toFixed(2)}  ${detTimes.length} det/5s`,
+    `flux ${mon.rawLow.toFixed(3)} thr ${mon.threshold.toFixed(3)}  ${detTimes.length} det/5s`,
     barX,
     32,
   );

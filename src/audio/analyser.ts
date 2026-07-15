@@ -25,10 +25,13 @@ export class AudioAnalyser {
   private freqData: Uint8Array = new Uint8Array(FFT_SIZE / 2);
 
   private smoothed = { low: 0, mid: 0, high: 0, energy: 0 };
-  private lowHistory: number[] = [];
   private lastBeatAt = -10;
-  private prevRawLow = 0;
   private detectedBeatThisFrame = false;
+  // Spectral-flux onset detection: frame-to-frame positive spectral change,
+  // normalized by recent spectral energy — level-independent (works at any
+  // input gain) and robust on heavily compressed material.
+  private prevSpec = new Uint8Array(FFT_SIZE / 2);
+  private fluxHistory: number[] = [];
   // Adaptive per-band range tracking (auto-gain): loud sustained music pins
   // absolute levels near max — effects need the RELATIVE motion.
   private bandStats: Record<'low' | 'mid' | 'high', { floor: number; peak: number }> = {
@@ -197,11 +200,13 @@ export class AudioAnalyser {
       };
 
       // Spectra tilt heavily toward bass — without makeup gain the mid/high
-      // bands barely move and effects riding them look dead.
+      // bands barely move and effects riding them look dead. NOT clamped here:
+      // clamping before auto-gain pins loud bands flat at 1.0 and destroys
+      // the variation normalization needs.
       const raw = {
-        low: Math.min(1, band(20, lowCross) * this.params.num('audio/lowBoost')),
-        mid: Math.min(1, band(lowCross, midCross) * this.params.num('audio/midBoost')),
-        high: Math.min(1, band(midCross, 10000) * this.params.num('audio/highBoost')),
+        low: band(20, lowCross) * this.params.num('audio/lowBoost'),
+        mid: band(lowCross, midCross) * this.params.num('audio/midBoost'),
+        high: band(midCross, 10000) * this.params.num('audio/highBoost'),
       };
 
       // Auto-gain: map each band into its own recent floor..peak range so
@@ -209,12 +214,17 @@ export class AudioAnalyser {
       // pinned loud all night.
       const autoGain = this.params.bool('audio/autoGain');
       const norm = (name: 'low' | 'mid' | 'high', value: number): number => {
-        if (!autoGain) return value;
+        if (!autoGain) return Math.min(1, value);
         const s = this.bandStats[name];
         s.peak = Math.max(value, s.peak * Math.exp(-dt / 8)); // fast up, ~8s decay
-        s.floor = Math.min(value, s.floor + (value - s.floor) * Math.min(1, dt / 10));
-        const range = s.peak - s.floor;
-        if (range < 0.03) return 0;
+        s.floor = Math.min(
+          s.floor + (value - s.floor) * Math.min(1, dt / 10),
+          value,
+          // Cap the floor below the peak so compressed pinned-loud music
+          // reads ~1 instead of collapsing the range to zero.
+          s.peak * 0.55,
+        );
+        const range = Math.max(0.04, s.peak - s.floor);
         return Math.min(1, Math.max(0, (value - s.floor) / range));
       };
       const rel = {
@@ -234,29 +244,34 @@ export class AudioAnalyser {
       this.smoothed.high = smooth(this.smoothed.high, rel.high);
       this.smoothed.energy = smooth(this.smoothed.energy, energy);
 
-      // Beat detect: instantaneous low vs rolling average.
-      this.lowHistory.push(raw.low);
-      if (this.lowHistory.length > HISTORY_LEN) this.lowHistory.shift();
-      const avg = this.lowHistory.reduce((a, b) => a + b, 0) / this.lowHistory.length;
+      // Beat detect: spectral flux (positive frame-to-frame change, 20Hz–4kHz,
+      // weighted toward the low end) NORMALIZED by current spectral energy —
+      // input gain cancels out entirely.
+      const fluxBins = Math.min(this.freqData.length, Math.ceil(4000 / binHz));
+      const lowBins = Math.max(1, Math.floor(lowCross / binHz));
+      let flux = 0;
+      let specEnergy = 0;
+      for (let i = 0; i < fluxBins; i++) {
+        const weight = i <= lowBins ? 3 : 1; // kicks live down here
+        flux += Math.max(0, this.freqData[i] - this.prevSpec[i]) * weight;
+        specEnergy += this.freqData[i] * weight;
+      }
+      this.prevSpec.set(this.freqData.subarray(0, fluxBins));
+      // Relative flux: fraction of current spectral energy that is NEW.
+      const relFlux = specEnergy > fluxBins * 2 ? flux / specEnergy : 0;
+
+      this.fluxHistory.push(relFlux);
+      if (this.fluxHistory.length > HISTORY_LEN) this.fluxHistory.shift();
+      const avg = this.fluxHistory.reduce((a, b) => a + b, 0) / this.fluxHistory.length;
       const sensitivity = this.params.num('audio/beatSensitivity');
-      this.monitor.rawLow = raw.low;
+      this.monitor.rawLow = relFlux;
       this.monitor.avg = avg;
-      this.monitor.threshold = Math.max(avg * sensitivity, 0.06);
-      // Rising-edge gate only for MARGINAL hits (lets the threshold sit low
-      // without sustained bass re-triggering); clear hits well above the
-      // threshold fire regardless — frames don't always catch the attack.
-      const rising = raw.low > this.prevRawLow * 1.02;
-      const strong = raw.low > this.monitor.threshold * 1.25;
-      if (
-        raw.low > this.monitor.threshold &&
-        (rising || strong) &&
-        time - this.lastBeatAt > BEAT_REFRACTORY
-      ) {
+      this.monitor.threshold = avg * sensitivity + 0.01;
+      if (relFlux > this.monitor.threshold && time - this.lastBeatAt > BEAT_REFRACTORY) {
         this.lastBeatAt = time;
         this.detectedBeatThisFrame = true;
         this.clock.reportDetectedBeat(time);
       }
-      this.prevRawLow = raw.low;
     }
 
     return {
