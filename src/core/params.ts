@@ -261,6 +261,7 @@ export const PARAM_DEFS: ParamDef[] = [
   F('audio/gain', 'Input gain', 'audio', 1, 0, 4),
   I('audio/lowCross', 'Low/mid crossover Hz', 'audio', 150, 60, 500),
   I('audio/midCross', 'Mid/high crossover Hz', 'audio', 2000, 500, 6000),
+  B('audio/autoGain', 'Auto gain (adaptive bands)', 'audio', true),
   F('audio/lowBoost', 'Low band boost', 'audio', 1.5, 0.5, 6),
   F('audio/midBoost', 'Mid band boost', 'audio', 2.2, 0.5, 6),
   F('audio/highBoost', 'High band boost', 'audio', 3.2, 0.5, 6),

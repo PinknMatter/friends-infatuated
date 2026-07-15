@@ -29,6 +29,13 @@ export class AudioAnalyser {
   private lastBeatAt = -10;
   private prevRawLow = 0;
   private detectedBeatThisFrame = false;
+  // Adaptive per-band range tracking (auto-gain): loud sustained music pins
+  // absolute levels near max — effects need the RELATIVE motion.
+  private bandStats: Record<'low' | 'mid' | 'high', { floor: number; peak: number }> = {
+    low: { floor: 0, peak: 0.25 },
+    mid: { floor: 0, peak: 0.25 },
+    high: { floor: 0, peak: 0.25 },
+  };
 
   mode: 'mic' | 'file' = 'mic';
   status: string = 'idle';
@@ -196,16 +203,35 @@ export class AudioAnalyser {
         mid: Math.min(1, band(lowCross, midCross) * this.params.num('audio/midBoost')),
         high: Math.min(1, band(midCross, 10000) * this.params.num('audio/highBoost')),
       };
-      const energy = (raw.low + raw.mid + raw.high) / 3;
+
+      // Auto-gain: map each band into its own recent floor..peak range so
+      // effects see the music's MOVEMENT even when the absolute level is
+      // pinned loud all night.
+      const autoGain = this.params.bool('audio/autoGain');
+      const norm = (name: 'low' | 'mid' | 'high', value: number): number => {
+        if (!autoGain) return value;
+        const s = this.bandStats[name];
+        s.peak = Math.max(value, s.peak * Math.exp(-dt / 8)); // fast up, ~8s decay
+        s.floor = Math.min(value, s.floor + (value - s.floor) * Math.min(1, dt / 10));
+        const range = s.peak - s.floor;
+        if (range < 0.03) return 0;
+        return Math.min(1, Math.max(0, (value - s.floor) / range));
+      };
+      const rel = {
+        low: norm('low', raw.low),
+        mid: norm('mid', raw.mid),
+        high: norm('high', raw.high),
+      };
+      const energy = (rel.low + rel.mid + rel.high) / 3;
 
       // Attack/release smoothing (frame-rate compensated).
       const attack = 1 - Math.exp(-dt * 60 * this.params.num('audio/attack'));
       const release = 1 - Math.exp(-dt * 60 * this.params.num('audio/release'));
       const smooth = (cur: number, target: number) =>
         cur + (target - cur) * (target > cur ? attack : release);
-      this.smoothed.low = smooth(this.smoothed.low, raw.low);
-      this.smoothed.mid = smooth(this.smoothed.mid, raw.mid);
-      this.smoothed.high = smooth(this.smoothed.high, raw.high);
+      this.smoothed.low = smooth(this.smoothed.low, rel.low);
+      this.smoothed.mid = smooth(this.smoothed.mid, rel.mid);
+      this.smoothed.high = smooth(this.smoothed.high, rel.high);
       this.smoothed.energy = smooth(this.smoothed.energy, energy);
 
       // Beat detect: instantaneous low vs rolling average.
@@ -216,12 +242,14 @@ export class AudioAnalyser {
       this.monitor.rawLow = raw.low;
       this.monitor.avg = avg;
       this.monitor.threshold = Math.max(avg * sensitivity, 0.06);
-      // Rising-edge requirement lets the threshold sit lower (more hits on
-      // real kicks) without sustained bass re-triggering after refractory.
+      // Rising-edge gate only for MARGINAL hits (lets the threshold sit low
+      // without sustained bass re-triggering); clear hits well above the
+      // threshold fire regardless — frames don't always catch the attack.
       const rising = raw.low > this.prevRawLow * 1.02;
+      const strong = raw.low > this.monitor.threshold * 1.25;
       if (
         raw.low > this.monitor.threshold &&
-        rising &&
+        (rising || strong) &&
         time - this.lastBeatAt > BEAT_REFRACTORY
       ) {
         this.lastBeatAt = time;

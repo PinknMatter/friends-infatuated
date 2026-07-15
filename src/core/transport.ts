@@ -21,6 +21,9 @@ export interface StatusPayload {
   monitor: { rawLow: number; avg: number; threshold: number };
   bpm: number;
   bpmMode: 'manual' | 'auto';
+  detBpm: number; // what tempo analysis is finding (0 = none yet)
+  detConf: number; // 0..1 cluster confidence
+  drive: number; // tempo×energy motion multiplier
   boxCount: number;
   audioStatus: string;
   bands: { low: number; mid: number; high: number };

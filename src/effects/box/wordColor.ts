@@ -34,7 +34,7 @@ export const wordColor: BoxEffect = {
     let st = states.get(box.id);
     if (!st || st.epoch !== epoch) {
       // High band widens coverage: more words light up when the top end hits.
-      const coverage = 0.25 + 0.45 * ctx.audio.bands.high;
+      const coverage = 0.12 + 0.6 * ctx.audio.bands.high;
       const colors = new Map<number, string>();
       for (let wi = 0; wi < box.words.length; wi++) {
         if (ctx.rng.chance(coverage)) colors.set(wi, ctx.rng.pick(palette));

@@ -10,7 +10,7 @@ export const flashInOut: BoxEffect = {
 
   apply(box: TextBox, style: BoxStyle, intensity: number, ctx: EffectCtx) {
     const probability =
-      ctx.params.num('fx/flashInOut/probability') * (0.7 + 0.6 * ctx.audio.bands.high);
+      ctx.params.num('fx/flashInOut/probability') * (0.45 + 1.0 * ctx.audio.bands.high);
     const rate = ctx.params.num('fx/flashInOut/rate');
     const epoch = Math.floor(ctx.audio.beatPos * rate * 2);
 

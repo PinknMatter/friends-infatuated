@@ -72,7 +72,12 @@ function renderStatus(): void {
   if (lastStatus) {
     el('fps').textContent = `${lastStatus.fps} fps`;
     el('phase').textContent = `phase ${lastStatus.phase} · ${lastStatus.boxCount} boxes`;
-    el('bpm').textContent = `${lastStatus.bpm} bpm (${lastStatus.bpmMode})`;
+    const det =
+      lastStatus.detBpm > 0
+        ? `detects ${lastStatus.detBpm} (${Math.round(lastStatus.detConf * 100)}%)`
+        : 'detects —';
+    el('bpm').textContent = `${lastStatus.bpm} bpm (${lastStatus.bpmMode}) · ${det}`;
+    el('drive').textContent = `motion ×${lastStatus.drive.toFixed(2)}`;
     el('audioStatus').textContent = `audio: ${lastStatus.audioStatus}`;
     el('effects').textContent = lastStatus.effects
       .map((e) => `${e.id} ${(e.intensity * 100) | 0}%`)

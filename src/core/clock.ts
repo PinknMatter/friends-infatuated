@@ -46,34 +46,55 @@ export class Clock {
 
   private detectedThisFrame = false;
 
+  /** Detected-tempo estimate and its confidence (0..1) — always maintained,
+   *  even in manual mode, so the panel can show what analysis is finding. */
+  get detectedTempo(): { bpm: number; confidence: number } {
+    return { bpm: this.detectedBpm, confidence: this.tempoConfidence };
+  }
+  private tempoConfidence = 0;
+
   /** Called by the audio analyser when it detects a beat. */
   reportDetectedBeat(time: number): void {
-    // Manual BPM is a hard override: detection must not re-anchor the beat
-    // grid or feed the detected tempo while the switch is on.
-    if (this.params.bool('audio/useManualBpm')) return;
-    this.detectedThisFrame = true;
+    // Tempo ESTIMATION always runs (so the panel can display it), but in
+    // manual mode it must not touch the beat grid.
+    const manual = this.params.bool('audio/useManualBpm');
+    if (!manual) this.detectedThisFrame = true;
+
     if (this.lastBeatTime > 0) {
-      const interval = time - this.lastBeatTime;
-      if (interval > 0.25 && interval < 1.2) {
+      let interval = time - this.lastBeatTime;
+      if (interval > 0.2 && interval < 2.5) {
+        // Octave-fold into 70–180 BPM so missed/double-fired beats still
+        // vote for the same underlying tempo.
+        while (interval < 60 / 180) interval *= 2;
+        while (interval > 60 / 70) interval /= 2;
         this.beatIntervals.push(interval);
-        if (this.beatIntervals.length > 16) this.beatIntervals.shift();
-        if (this.beatIntervals.length >= 4) {
-          const sorted = [...this.beatIntervals].sort((a, b) => a - b);
-          const median = sorted[Math.floor(sorted.length / 2)];
-          // Real-music detectors are noisy — accept when half the intervals
-          // sit near the median.
-          const near = this.beatIntervals.filter((i) => Math.abs(i - median) < 0.06).length;
-          if (near >= this.beatIntervals.length * 0.5) {
-            this.detectedBpm = 60 / median;
+        if (this.beatIntervals.length > 24) this.beatIntervals.shift();
+
+        if (this.beatIntervals.length >= 6) {
+          // Cluster: the interval with the most neighbours within 30ms wins.
+          let bestCenter = 0;
+          let bestCount = 0;
+          for (const candidate of this.beatIntervals) {
+            const cluster = this.beatIntervals.filter((i) => Math.abs(i - candidate) < 0.03);
+            if (cluster.length > bestCount) {
+              bestCount = cluster.length;
+              bestCenter = cluster.reduce((a, b) => a + b, 0) / cluster.length;
+            }
+          }
+          this.tempoConfidence = bestCount / this.beatIntervals.length;
+          if (this.tempoConfidence >= 0.4 && bestCenter > 0) {
+            this.detectedBpm = 60 / bestCenter;
           }
         }
       }
     }
-    // Re-anchor the grid PHASE to the detected kick while preserving the
-    // accumulated beat count — bars must keep advancing or the phase
-    // scheduler freezes in auto mode.
-    const nearest = Math.round(this.beatPosition);
-    this.phaseOrigin = time - nearest * this.beatDuration;
+    if (!manual) {
+      // Re-anchor the grid PHASE to the detected kick while preserving the
+      // accumulated beat count — bars must keep advancing or the phase
+      // scheduler freezes in auto mode.
+      const nearest = Math.round(this.beatPosition);
+      this.phaseOrigin = time - nearest * this.beatDuration;
+    }
     this.lastBeatTime = time;
   }
 
