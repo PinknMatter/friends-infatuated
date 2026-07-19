@@ -8,6 +8,7 @@ import { BroadcastTransport } from './core/transport';
 import { Clock } from './core/clock';
 import { resolveFont } from './core/fonts';
 import { StaticSentenceStore } from './data/sentences';
+import { startSupabaseSync } from './data/supabaseSync';
 import { LayoutEngine } from './layout/layoutEngine';
 import { clearFitCache } from './layout/fitText';
 import { AudioAnalyser } from './audio/analyser';
@@ -32,6 +33,9 @@ void store.loadExternal().then((n) => {
     transport.send({ type: 'log', text: `dataset: merged ${n} sentences from sentences.json` });
   }
 });
+// Audience submissions (QR-code site → Supabase → here). No-op when
+// supabaseConfig is empty.
+startSupabaseSync(store, (text) => transport.send({ type: 'log', text }));
 
 const layout = new LayoutEngine(params, store, W, H);
 const audio = new AudioAnalyser(params, clock);

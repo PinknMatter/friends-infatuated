@@ -267,6 +267,21 @@ export class StaticSentenceStore implements SentenceStore {
     this.listeners.push(cb);
   }
 
+  /**
+   * Add a sentence from an external live source (Supabase sync). Poem line
+   * breaks are collapsed — the layout engine is word-based. Returns false if
+   * rejected (duplicate or out of bounds).
+   */
+  addExternal(raw: string): boolean {
+    const s = raw.replace(/\s+/g, ' ').trim();
+    const words = s.split(' ').length;
+    if (s.length < 3 || s.length > 300 || words > 40) return false;
+    if (this.sentences.includes(s)) return false;
+    this.sentences.push(s);
+    for (const cb of this.listeners) cb(s);
+    return true;
+  }
+
   /** Wired to the data/injectRandom trigger in the control panel. */
   injectRandom(): void {
     const s =

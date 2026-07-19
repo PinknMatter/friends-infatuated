@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FRIENDS INFATUATED</title>
+<style>
+  body { background:#000; color:#e8e8e8; font-family:"Courier New",Courier,monospace;
+         max-width:34em; margin:2em auto; padding:0 1em; line-height:1.5; }
+  h1 { font-size:1.3em; letter-spacing:0.2em; text-align:center; font-weight:normal; }
+  hr { border:none; border-top:1px dashed #555; margin:1.5em 0; }
+  textarea, input[type=text] { width:100%; box-sizing:border-box; background:#111;
+         color:#e8e8e8; border:1px solid #666; font:inherit; padding:0.5em; }
+  textarea { height:7em; }
+  button { background:#e8e8e8; color:#000; border:none; font:inherit; padding:0.6em 2em;
+         cursor:pointer; letter-spacing:0.15em; margin-top:0.8em; }
+  button:disabled { opacity:0.4; }
+  .small { color:#888; font-size:0.85em; }
+  #done { display:none; text-align:center; }
+  .hp { position:absolute; left:-9999px; }
+  blink { animation:bl 1s steps(1) infinite; } @keyframes bl { 50% { opacity:0; } }
+</style>
+</head>
+<body>
+<h1>✶ FRIENDS INFATUATED ✶</h1>
+<p class="small" style="text-align:center">write something true about a friend.<br>
+a sentence, a memory, a poem — it goes up on the wall tonight.</p>
+<hr>
+<form id="f">
+  <label>your words <blink>_</blink></label>
+  <textarea id="text" maxlength="300" required
+    placeholder="she once drove four hours just to bring me soup"></textarea>
+  <label class="small">your name (optional, not displayed)</label>
+  <input type="text" id="author" maxlength="60">
+  <input type="text" class="hp" id="website" tabindex="-1" autocomplete="off">
+  <button id="go" type="submit">SEND IT</button>
+  <p class="small" id="err"></p>
+</form>
+<div id="done">
+  <p>✶ ✶ ✶</p>
+  <p>it's in. watch the wall.</p>
+  <p><a href="#" onclick="location.reload();return false" style="color:#e8e8e8">write another</a></p>
+</div>
+<hr>
+<p class="small" style="text-align:center">no phones on the dancefloor after this</p>
+<script>
+var API = 'https://slopgzmjfkdccgxlmdzi.supabase.co/functions/v1/submit';
+document.getElementById('f').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const go = document.getElementById('go');
+  const err = document.getElementById('err');
+  const text = document.getElementById('text').value.trim();
+  if (text.length < 3) { err.textContent = 'a little more than that'; return; }
+  go.disabled = true; err.textContent = '';
+  try {
+    const res = await fetch(API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text,
+        author: document.getElementById('author').value.trim(),
+        website: document.getElementById('website').value,
+      }),
+    });
+    if (!res.ok) throw new Error((await res.json()).error || 'failed');
+    document.getElementById('f').style.display = 'none';
+    document.getElementById('done').style.display = 'block';
+  } catch (e2) {
+    err.textContent = 'hmm, that did not go through — try again';
+    go.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
