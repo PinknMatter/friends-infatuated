@@ -304,6 +304,45 @@ built-in sentences (multilingual sprinkle, 3–20 words, warm/funny/sincere).
 `data/injectRandom` trigger adds one (tests grows-over-the-night).
 `loadExternal()` fetches optional `/public/sentences.json` (JSON array of
 strings; deduped; 3–24 words) at startup — the dataset drop-in.
+`addExternal(raw)` is the LIVE ingress (Supabase): collapses whitespace/line
+breaks (layout is word-based), bounds 3–300 chars / ≤40 words, dedupes, then
+fires `onAdded` → layout batches a reshuffle. Poems arrive as one line.
+
+## src/data/ — Supabase audience submissions (STAGE 2, LIVE)
+
+The "sentences about friends from the crowd" pipeline is built and deployed.
+- **Submission site**: `docs/index.html` — a plain black terminal-style HTML
+  form, hosted on **GitHub Pages** (repo `PinknMatter/friends-infatuated`,
+  `master:/docs`, deployed by `.github/workflows/pages.yml` — an Actions
+  static deploy, NOT Jekyll). Live at
+  `https://pinknmatter.github.io/friends-infatuated/`. Has a honeypot field
+  (`website`) + client length guard. **Why Pages and not Supabase**: the
+  Supabase gateway forces `Content-Type: text/plain` on any HTML served from
+  `*.supabase.co` (anti-phishing) — browsers show source, not a page. So the
+  page is static-hosted and only the write API lives on Supabase.
+- **Write API**: Supabase edge function `submit`
+  (`supabase/functions/submit/index.ts`), `verify_jwt=false`. POST JSON
+  `{text, author?, website?}` → validates → inserts with the SERVICE ROLE
+  (the table has NO public INSERT policy; this function is the only door in).
+  Honeypot filled → fake-success no-op. GET/HEAD → 302 to the Pages site.
+  CORS open (the form is cross-origin on github.io).
+- **Read path**: `supabaseSync.ts` (`startSupabaseSync`) polls PostgREST every
+  8s with the PUBLISHABLE key: `sentences?approved=is.true&id=gt.<lastId>` →
+  `store.addExternal`. No supabase-js, no websocket (venue wifi drops must not
+  kill visuals); network errors are silent and retried next tick. First load
+  logs a count; deltas log `+N new from the crowd`. Wired in `main.ts`.
+- **DB**: table `public.sentences` (id identity, text 3–300 check, author,
+  `approved` bool default TRUE, created_at). RLS: SELECT where approved only.
+  To add moderation later, flip the default to FALSE and build an approve UI —
+  the read path already filters on `approved`.
+- **Config**: `supabaseConfig.ts` holds URL + publishable key (safe in the
+  browser — RLS-gated read only) + `SUBMIT_URL` (the Pages site). Empty URL/
+  key ⇒ sync is a no-op and the engine runs on the built-in pool alone.
+- **Project**: Supabase project `slopgzmjfkdccgxlmdzi`, org
+  `FriendsInfactuated`. The `probe` edge function is a retired diagnostic
+  (redirects to the site) — safe to delete.
+- **QR**: `qr-code.png` (800px) / `qr-code.svg` (print) at repo root encode
+  the Pages URL. Regenerate: `npx qrcode "<url>" -o qr-code.png -w 800`.
 
 ## Gotchas (hard-won — do not rediscover)
 
