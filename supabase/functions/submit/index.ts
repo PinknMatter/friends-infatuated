@@ -40,7 +40,32 @@ const WORD_BLOCK = new Set([
   'fag', 'fags', 'spic', 'spics', 'chink', 'chinks', 'coon', 'coons',
   'gook', 'gooks', 'tranny', 'trannies', 'dyke', 'dykes',
   'retard', 'retards', 'retarded',
+  // Not slurs per se, but on this wall they only ever arrive as the insult
+  // ("X is gayyyy") — operator's call to block outright.
+  'gay', 'gays', 'homo', 'homos',
 ]);
+
+// Stretched spellings ("gayyyy") collapse to their base before the word
+// check; the block set is pre-collapsed the same way so both sides align.
+const dedupe = (s: string): string => s.replace(/(.)\1+/g, '$1');
+const WORD_BLOCK_DEDUPED = new Set([...WORD_BLOCK].map(dedupe));
+
+// Spaced-out spellings ("g a y y y", "ga y") appear as runs of tiny tokens —
+// merge each run of ≤2-letter tokens into a candidate word for the check.
+function mergedRuns(words: string[]): string[] {
+  const out: string[] = [];
+  let run = '';
+  for (const w of words) {
+    if (w.length <= 2) {
+      run += w;
+    } else {
+      if (run.length > 2) out.push(run);
+      run = '';
+    }
+  }
+  if (run.length > 2) out.push(run);
+  return out;
+}
 
 function isHateful(input: string): boolean {
   const norm = input
@@ -49,7 +74,16 @@ function isHateful(input: string): boolean {
     .map((c) => LEET[c] ?? c)
     .join('');
   const words = norm.split(/[^a-z]+/).filter(Boolean);
-  if (words.some((w) => WORD_BLOCK.has(w))) return true;
+  if (words.some((w) => WORD_BLOCK.has(w) || WORD_BLOCK_DEDUPED.has(dedupe(w)))) return true;
+  // Merged runs are agglomerations of deliberate fragments ("ga y as" →
+  // "gayas"), so SUBSTRING matching is right here — exact match lets the
+  // surrounding fragments mask the term. Tokens are deduped BEFORE merging
+  // so a stretched fragment ("g a yyyy") still reads as a short one.
+  for (const run of mergedRuns(words.map(dedupe))) {
+    for (const t of WORD_BLOCK_DEDUPED) {
+      if (run.includes(t)) return true;
+    }
+  }
   const compact = words.join('');
   // Collapse 3+ repeats to 2 so stretched spellings still match.
   const collapsed = compact.replace(/(.)\1{2,}/g, '$1$1');
