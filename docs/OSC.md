@@ -68,6 +68,7 @@ name a control one of these and its default message needs no editing:
 | `blackout`, `c4` | `master/blackout` | |
 | `mbpm`, `manualbpm`, `usemanualbpm` | `audio/useManualBpm` | |
 | `tap`, `taptempo` | `audio/tapTempo` (trigger) | needs ≥3 taps within 3s |
+| `tapchaos`, `pulse`, `punch` | `phases/pulse` (trigger) | one-shot surge through the active phase |
 | `shufflegridnow`, `shiftgrid`, `morph` | `layout/morph` (trigger) | grid shifts as one unit, boxes keep sentences |
 | `shuffle`, `reshuffle` | `layout/reshuffle` (trigger) | full grid rebuild |
 
