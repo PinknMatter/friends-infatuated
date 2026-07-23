@@ -99,6 +99,18 @@ export class LayoutEngine {
     store.onAdded(() => {
       this.pendingAdds++;
     });
+    // Moderation: a sentence deleted in Supabase must leave the WALL, not
+    // just the pool — retire any box currently showing it.
+    store.onRemoved((s) => {
+      for (const box of this.boxes) {
+        if (box.sentence !== s) continue;
+        if (this.params.bool('layout/lifecycle')) {
+          box.outStart = this.time; // graceful type-out (instant cut in flash/strobe)
+        } else {
+          this.respawn(box, this.nextSentence(), this.time);
+        }
+      }
+    });
   }
 
   requestReshuffle(): void {

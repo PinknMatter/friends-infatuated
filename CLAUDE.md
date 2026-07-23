@@ -363,10 +363,15 @@ The "sentences about friends from the crowd" pipeline is built and deployed.
   Honeypot filled → fake-success no-op. GET/HEAD → 302 to the Pages site.
   CORS open (the form is cross-origin on github.io).
 - **Read path**: `supabaseSync.ts` (`startSupabaseSync`) polls PostgREST every
-  8s with the PUBLISHABLE key: `sentences?approved=is.true&id=gt.<lastId>` →
-  `store.addExternal`. No supabase-js, no websocket (venue wifi drops must not
-  kill visuals); network errors are silent and retried next tick. First load
-  logs a count; deltas log `+N new from the crowd`. Wired in `main.ts`.
+  8s with the PUBLISHABLE key, fetching the FULL approved set and RECONCILING:
+  new ids → `store.addExternal` (→ onAdded → batched reshuffle); vanished ids
+  (row deleted or unapproved in the dashboard — the live moderation path) →
+  `store.removeExternal` (→ onRemoved → layoutEngine retires boxes showing the
+  sentence: graceful type-out, instant in flash/strobe). No supabase-js, no
+  websocket (venue wifi drops must not kill visuals); network errors are
+  silent and retried next tick — a failed fetch must never read as mass
+  deletion. Logs: first-load count, `+N new from the crowd`,
+  `-N moderated off the wall`. Wired in `main.ts`.
 - **DB**: table `public.sentences` (id identity, text 3–300 check, author,
   `approved` bool default TRUE, created_at). RLS: SELECT where approved only.
   To add moderation later, flip the default to FALSE and build an approve UI —

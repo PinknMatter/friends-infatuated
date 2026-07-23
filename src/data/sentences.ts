@@ -11,6 +11,8 @@ export interface SentenceStore {
   /** Crowd pool: Supabase submissions, sentences.json, injected extras. */
   getExternal(): string[];
   onAdded(cb: (sentence: string) => void): void;
+  /** Moderation: fired when a sentence is pulled from the external pool. */
+  onRemoved(cb: (sentence: string) => void): void;
 }
 
 const POOL: string[] = [
@@ -266,6 +268,7 @@ export class StaticSentenceStore implements SentenceStore {
   private external: string[] = [];
   private extras: string[] = [...EXTRA];
   private listeners: ((s: string) => void)[] = [];
+  private removedListeners: ((s: string) => void)[] = [];
 
   getAll(): string[] {
     return [...this.builtin, ...this.external];
@@ -281,6 +284,24 @@ export class StaticSentenceStore implements SentenceStore {
 
   onAdded(cb: (sentence: string) => void): void {
     this.listeners.push(cb);
+  }
+
+  onRemoved(cb: (sentence: string) => void): void {
+    this.removedListeners.push(cb);
+  }
+
+  /**
+   * Moderation path: a row deleted (or unapproved) in Supabase must leave the
+   * live pool too — the sync calls this on reconcile. Fires onRemoved so the
+   * layout engine can retire boxes already showing the sentence.
+   */
+  removeExternal(raw: string): boolean {
+    const s = raw.replace(/\s+/g, ' ').trim();
+    const idx = this.external.indexOf(s);
+    if (idx < 0) return false;
+    this.external.splice(idx, 1);
+    for (const cb of this.removedListeners) cb(s);
+    return true;
   }
 
   private has(s: string): boolean {
