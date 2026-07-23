@@ -16,6 +16,46 @@ const CORS = {
   'Access-Control-Allow-Headers': 'content-type',
 };
 
+// ---- content guardrail -----------------------------------------------------
+// This goes on a projector in front of a crowd. Ordinary swearing is fine
+// (the builtin pool swears); slurs and hate speech are not. Matches get the
+// honeypot treatment: fake success, nothing stored, no signal to iterate on.
+// Normalization defeats the cheap tricks: case, leet substitutions, spacing
+// (f a g g o t), and stretched letters (niiigger).
+
+const LEET: Record<string, string> = {
+  '0': 'o', '1': 'i', '3': 'e', '4': 'a', '5': 's', '7': 't', '8': 'b',
+  '@': 'a', '$': 's', '!': 'i', '¡': 'i', '€': 'e',
+};
+
+// Unambiguous hate terms — matched as substrings of the letters-only text
+// (also catches spaced-out and suffixed variants).
+const SUB_BLOCK = [
+  'nigger', 'nigga', 'faggot', 'kike', 'wetback', 'raghead', 'towelhead',
+  'beaner', 'darkie', 'heilhitler', 'gasthejews', 'killalljews', 'killallgays',
+];
+// Shorter/ambiguous terms — whole-word only (substring would eat innocent
+// words: raccoon, conspicuous, gobbledygook…).
+const WORD_BLOCK = new Set([
+  'fag', 'fags', 'spic', 'spics', 'chink', 'chinks', 'coon', 'coons',
+  'gook', 'gooks', 'tranny', 'trannies', 'dyke', 'dykes',
+  'retard', 'retards', 'retarded',
+]);
+
+function isHateful(input: string): boolean {
+  const norm = input
+    .toLowerCase()
+    .split('')
+    .map((c) => LEET[c] ?? c)
+    .join('');
+  const words = norm.split(/[^a-z]+/).filter(Boolean);
+  if (words.some((w) => WORD_BLOCK.has(w))) return true;
+  const compact = words.join('');
+  // Collapse 3+ repeats to 2 so stretched spellings still match.
+  const collapsed = compact.replace(/(.)\1{2,}/g, '$1$1');
+  return SUB_BLOCK.some((t) => compact.includes(t) || collapsed.includes(t));
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return new Response(null, { status: 204, headers: CORS });
   // Someone opened the API URL in a browser → send them to the real page.
@@ -35,6 +75,10 @@ Deno.serve(async (req: Request) => {
     const words = text.split(' ').length;
     if (text.length < 3 || text.length > 300 || words > 40) {
       return json({ error: 'keep it between 3 and 300 characters (max 40 words)' }, 422);
+    }
+    // Hate speech → same as the honeypot: pretend success, store nothing.
+    if (isHateful(text) || isHateful(author)) {
+      return json({ ok: true });
     }
 
     const res = await fetch(`${Deno.env.get('SUPABASE_URL')}/rest/v1/sentences`, {

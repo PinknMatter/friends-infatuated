@@ -26,7 +26,9 @@
 <p class="small" style="text-align:center">Keep your friends close.</p>
 <hr>
 <form id="f">
-  <label>your words <blink>_</blink></label>
+  <label>one true sentence about a friend <blink>_</blink></label>
+  <p class="small" style="margin:0.3em 0 0.6em">a thing they did once. a habit. a night you
+    remember. the more specific, the better it hits.</p>
   <textarea id="text" maxlength="300" required
     placeholder="she once drove four hours just to bring me soup"></textarea>
   <input type="text" class="hp" id="website" tabindex="-1" autocomplete="off">
@@ -43,6 +45,24 @@
   <a href="https://instagram.com/noahhkorn" target="_blank" rel="noopener" style="color:#e8e8e8">@noahhkorn</a></p>
 <script>
 var API = 'https://slopgzmjfkdccgxlmdzi.supabase.co/functions/v1/submit';
+// Rotating placeholder: show people the KIND of sentence that works.
+var HINTS = [
+  'she once drove four hours just to bring me soup',
+  'he laughs at his own jokes before the punchline',
+  'the group chat has been alive for nine years straight',
+  'she answered the phone at 4am like it was noon',
+  'we met in a mosh pit and never left each other',
+  'he keeps every ticket stub from every show we go to',
+];
+(function () {
+  var ta = document.getElementById('text');
+  var i = 0;
+  setInterval(function () {
+    if (document.activeElement === ta || ta.value) return;
+    i = (i + 1) % HINTS.length;
+    ta.placeholder = HINTS[i];
+  }, 3500);
+})();
 document.getElementById('f').addEventListener('submit', async (e) => {
   e.preventDefault();
   const go = document.getElementById('go');
