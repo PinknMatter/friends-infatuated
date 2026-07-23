@@ -63,10 +63,24 @@ transport.onMessage((msg) => {
 
 params.onChange('master/seed', () => layout.requestReshuffle());
 
-// ---- QR screen: fullscreen DOM overlay (above the canvas, so the post
-// shader can never distort the code into unscannability). Built once, shown
-// on master/qrShow.
-function buildQrOverlay(): HTMLDivElement {
+// ---- QR screen: DOM overlay (above the canvas, so the post shader can never
+// distort the code into unscannability) that reads as a PHASE, not a slide:
+// the engine keeps running visibly behind a scrim, the headline types itself
+// in and out in a lifecycle-style loop, the QR frame breathes. Built once,
+// shown on master/qrShow.
+const QR_HEADLINE = 'KEEP YOUR FRIENDS CLOSE';
+const QR_TYPE_MS = 55; // per char, ≈ the engine's type-in feel
+
+function buildQrOverlay(): { overlay: HTMLDivElement; headText: HTMLSpanElement } {
+  const style = document.createElement('style');
+  style.textContent = [
+    '@keyframes qr-breathe { 0%,100% { transform:scale(1); } 50% { transform:scale(1.035); } }',
+    '@keyframes qr-cursor { 0%,49% { opacity:1; } 50%,100% { opacity:0; } }',
+    // rare soft dips, like flashInOut grazing the headline (gentle, not a strobe)
+    '@keyframes qr-flicker { 0%,91%,95%,100% { opacity:1; } 92%,94% { opacity:0.3; } }',
+  ].join('\n');
+  document.head.appendChild(style);
+
   const overlay = document.createElement('div');
   overlay.id = 'qr-overlay';
   overlay.style.cssText = [
@@ -78,41 +92,86 @@ function buildQrOverlay(): HTMLDivElement {
     'align-items:center',
     'justify-content:center',
     'gap:36px',
-    'background:#000',
+    'background:rgba(0,0,0,0.45)', // scrim — the phases stay visible behind
     "font-family:'Space Grotesk',monospace",
     'color:#fff',
     'text-align:center',
     'cursor:none',
+    'pointer-events:none',
   ].join(';');
 
   const heading = document.createElement('div');
-  heading.textContent = 'WRITE SOMETHING TRUE ABOUT A FRIEND';
-  heading.style.cssText = 'font-size:52px;letter-spacing:0.12em;font-weight:700;max-width:80vw';
-
-  const sub = document.createElement('div');
-  sub.textContent = 'a sentence, a memory, a poem';
-  sub.style.cssText = 'font-size:26px;letter-spacing:0.08em;color:#bbb;margin-top:-18px';
+  heading.style.cssText =
+    'font-size:56px;letter-spacing:0.12em;font-weight:700;max-width:88vw;' +
+    'min-height:1.2em;animation:qr-flicker 9s linear infinite;' +
+    'text-shadow:0 0 24px rgba(0,0,0,0.9)';
+  const headText = document.createElement('span');
+  const cursor = document.createElement('span');
+  cursor.textContent = '_';
+  cursor.style.cssText = 'animation:qr-cursor 1s steps(1) infinite';
+  heading.append(headText, cursor);
 
   const frame = document.createElement('div');
-  frame.style.cssText = 'background:#fff;padding:28px;line-height:0';
+  frame.style.cssText =
+    'background:#fff;padding:28px;line-height:0;' +
+    'animation:qr-breathe 4s ease-in-out infinite;box-shadow:0 0 60px rgba(0,0,0,0.8)';
   const img = document.createElement('img');
   img.src = '/qr.png';
   img.alt = SUBMIT_URL;
   img.style.cssText = 'width:min(38vh,420px);height:auto;image-rendering:pixelated';
   frame.appendChild(img);
 
+  const sub = document.createElement('div');
+  sub.textContent = 'scan · write · it lands on the wall';
+  sub.style.cssText =
+    'font-size:24px;letter-spacing:0.1em;color:#ccc;text-shadow:0 0 16px rgba(0,0,0,0.9)';
+
   const url = document.createElement('div');
   url.textContent = SUBMIT_URL.replace(/^https?:\/\//, '');
-  url.style.cssText = 'font-size:28px;letter-spacing:0.06em;color:#e8e8e8';
+  url.style.cssText =
+    'font-size:28px;letter-spacing:0.06em;color:#e8e8e8;text-shadow:0 0 16px rgba(0,0,0,0.9)';
 
-  overlay.append(heading, sub, frame, url);
+  overlay.append(heading, frame, sub, url);
   document.body.appendChild(overlay);
-  return overlay;
+  return { overlay, headText };
 }
 
-const qrOverlay = buildQrOverlay();
+const qr = buildQrOverlay();
+let qrTypeTimer: number | null = null;
+
+// Lifecycle-style headline loop: type in → hold → backspace → brief empty →
+// again. Runs only while the overlay is visible.
+function startQrTyping(): void {
+  let chars = 0;
+  let dir = 1;
+  let hold = 0;
+  qr.headText.textContent = '';
+  qrTypeTimer = window.setInterval(() => {
+    if (hold > 0) {
+      hold--;
+      return;
+    }
+    chars += dir === 1 ? 1 : -2; // backspace at ~2× like the engine's type-out
+    if (chars >= QR_HEADLINE.length) {
+      chars = QR_HEADLINE.length;
+      dir = -1;
+      hold = Math.round(3500 / QR_TYPE_MS);
+    } else if (chars <= 0) {
+      chars = 0;
+      dir = 1;
+      hold = Math.round(700 / QR_TYPE_MS);
+    }
+    qr.headText.textContent = QR_HEADLINE.slice(0, chars);
+  }, QR_TYPE_MS);
+}
+
 params.onChange('master/qrShow', (v) => {
-  qrOverlay.style.display = v ? 'flex' : 'none';
+  qr.overlay.style.display = v ? 'flex' : 'none';
+  if (qrTypeTimer !== null) {
+    window.clearInterval(qrTypeTimer);
+    qrTypeTimer = null;
+  }
+  if (v) startQrTyping();
 });
 
 new p5((p: p5) => {
