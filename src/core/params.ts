@@ -308,6 +308,12 @@ export const PARAM_DEFS: ParamDef[] = [
   I('phases/maxEffects', 'Effects per phase max', 'phases', 5, 1, 8),
   F('phases/crossfadeBeats', 'Crossfade beats', 'phases', 6, 1, 32, 1),
   T('phases/next', 'Force next phase', 'phases'),
+  // Tap accent: a one-shot surge through whatever the current phase is doing —
+  // active effect intensities and post targets swell and decay, plus one
+  // synthetic beat so beat-reactive effects snap. Character = the phase's.
+  T('phases/pulse', 'Pulse (tap accent)', 'phases'),
+  F('phases/pulseAmount', 'Pulse amount', 'phases', 0.8, 0, 2),
+  F('phases/pulseDecaySecs', 'Pulse decay secs', 'phases', 0.4, 0.1, 2),
   B('phases/freeze', 'Freeze phase', 'phases', false),
   // Probabilities that a new phase spawns sentences flash- or strobe-style
   // instead of typed (rolled together; they should sum to < 1).

@@ -121,6 +121,9 @@ const NAME_ALIASES = {
   usemanualbpm: { path: 'audio/useManualBpm' },
   taptempo: { path: 'audio/tapTempo', trigger: true },
   tap: { path: 'audio/tapTempo', trigger: true },
+  tapchaos: { path: 'phases/pulse', trigger: true },
+  pulse: { path: 'phases/pulse', trigger: true },
+  punch: { path: 'phases/pulse', trigger: true },
   // 'shift the grid' = morph (ratios glide, boxes keep their sentences)
   shufflegridnow: { path: 'layout/morph', trigger: true },
   shiftgrid: { path: 'layout/morph', trigger: true },

@@ -40,6 +40,10 @@ export class PhaseScheduler {
   private current: Phase;
   private previous: Phase | null = null;
   private crossfadeStartBeat = 0;
+  // Tap accent (phases/pulse): exponential surge through the ACTIVE phase.
+  private pulseAt = -Infinity;
+  private pulseBeatPending = false;
+  private lastTime = 0;
   private phaseCounter = 0;
   private currentIntensities = new Map<string, number>();
   private postDrive: Record<string, number> = {};
@@ -53,6 +57,10 @@ export class PhaseScheduler {
     this.phaseRng = this.rootRng.fork();
     this.current = this.generatePhase(0);
     params.onChange('phases/next', () => this.forceNext());
+    params.onChange('phases/pulse', () => {
+      this.pulseAt = this.lastTime;
+      this.pulseBeatPending = true;
+    });
     params.onChange('phases/nextScene', () => this.switchScene(true));
     params.onChange('master/seed', (v) => {
       this.rootRng = new RNG(Number(v));
@@ -182,6 +190,11 @@ export class PhaseScheduler {
   /** Advance phase state; call once per frame before effects run. */
   update(ctx: EffectCtx): void {
     this.lastCtx = ctx;
+    this.lastTime = ctx.time;
+    // Tap accent envelope: 0 when idle, pulseAmount at the tap, exp decay.
+    const pulse =
+      this.params.num('phases/pulseAmount') *
+      Math.exp(-(ctx.time - this.pulseAt) / Math.max(0.1, this.params.num('phases/pulseDecaySecs')));
     // phases/enabled off = manual tuning mode: the scheduler contributes
     // nothing; only fx/<id>/intensity overrides drive effects.
     const enabled = this.params.bool('phases/enabled');
@@ -219,6 +232,10 @@ export class PhaseScheduler {
       // Hard per-effect kill switch — beats scheduler AND override.
       if (!this.params.bool(`fx/${effect.id}/enabled`)) intensity = 0;
 
+      // Tap accent: proportional surge — only what's already active swells,
+      // so the pulse's character IS the current phase's.
+      if (pulse > 0.001 && intensity > 0) intensity = Math.min(1, intensity * (1 + pulse));
+
       if (soloing && effect.wantsSolo !== true && intensity > 0) {
         intensity *= 0.25;
       }
@@ -229,8 +246,26 @@ export class PhaseScheduler {
     for (const key of POST_KEYS) {
       const from = this.previous?.post[key] ?? 0;
       const to = this.current.post[key] ?? 0;
-      this.postDrive[key] = enabled ? from + (to - from) * fadeT : 0;
+      let value = enabled ? from + (to - from) * fadeT : 0;
+      // Tap accent: swell active post targets; plus a small unconditional
+      // rgbSplit/displacement kick so the tap always reads, even in a phase
+      // with no post of its own. Ceilings keep feedback from running away.
+      if (pulse > 0.001) {
+        if (value > 0) value *= 1 + pulse;
+        if (key === 'rgbSplit') value = Math.max(value, 0.35 * Math.min(1, pulse));
+        if (key === 'displacement') value = Math.max(value, 0.3 * Math.min(1, pulse));
+        value = Math.min(POST_CEILING[key], value);
+      }
+      this.postDrive[key] = value;
     }
+  }
+
+  /** One synthetic beat per tap — renderer ORs it into AudioFrame.beat so
+   *  beat-reactive effects (wordColor, flashInOut, justifyShift…) snap. */
+  consumePulseBeat(): boolean {
+    const fire = this.pulseBeatPending;
+    this.pulseBeatPending = false;
+    return fire;
   }
 
   intensityOf(id: string): number {

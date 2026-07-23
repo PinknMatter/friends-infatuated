@@ -81,6 +81,9 @@ export class Renderer {
 
     this.clock.update(time);
     const audioFrame: AudioFrame = this.audio.update(time, dt);
+    // Tap accent (phases/pulse): one synthetic beat so beat-reactive effects
+    // snap on the operator's tap, whatever the audio is doing.
+    if (this.scheduler.consumePulseBeat()) audioFrame.beat = true;
     this.lastAudio = audioFrame;
     if (audioFrame.beat) this.beatSinceStatus = true;
     if (this.audio.detectedBeat) this.detectedSinceStatus = true;
