@@ -4,8 +4,9 @@ A generative typographic VJ engine for a rave. Audience-submitted sentences
 about friends are laid out in a non-overlapping BSP grid at 1920×1080 and
 animated through ~16 audio-reactive text effects, composed generatively in
 "phases" that evolve over the night. Runs fullscreen in a browser, HDMI to a
-projector, controlled from a second browser tab. Stage 1: no backend, no OSC —
-but both have deliberate seams (see Future Seams).
+projector, controlled from a second browser tab. Stage 2 added the Supabase
+submission pipeline; stage 3 added the OSC bridge (TouchOSC), DB sentence mix,
+flash spawn style, QR screen, blackout, and NDI docs (see those sections).
 
 ## Commands
 
@@ -19,6 +20,7 @@ npm run test:audio   # REAL analyser+clock driven at simulated 60fps with
 node scripts/smoke.mjs   # headless E2E (needs dev server running): loads both
                          # pages, checks transport round-trip, screenshots.
                          # SMOKE_SHOT_DIR env redirects screenshot output.
+npm run osc          # OSC bridge: UDP OSC :9000 -> WebSocket :8765 (docs/OSC.md)
 ```
 
 Stack: Vite + vanilla TypeScript, p5.js (instance mode, 2D renderer only) for
@@ -91,9 +93,20 @@ live is a param.**
 phase+scene name, active effects, beat/detected flags, detection monitor
 values, bpm + mode + detected tempo + confidence, drive, bands, audio status),
 `log` (surfaces in the panel's log footer), `audio-file` (name + ArrayBuffer,
-structured-cloned control→render). The later OSC bridge is a Node process
-translating `/param/<path>` OSC into the same `param-set` messages — nothing
-else should need to change.
+structured-cloned control→render).
+
+**OSC bridge (LIVE)**: `scripts/osc-bridge.mjs` (`npm run osc`) listens for UDP
+OSC on :9000, serves WebSocket on :8765. `/param/<path> <arg>` → `param-set`;
+`/trigger/<path>` → `param-trigger` (arg 0 = TouchOSC button release, ignored).
+Hand-rolled OSC parser (f/i/s/T/F + bundles), no OSC dep; `ws` devDependency.
+`src/core/wsTransport.ts` `attachOscBridge(base)` wraps the render window's
+BroadcastTransport (render only — it is authoritative): messages received on
+either leg are delivered AND relayed to the other (never echoed back onto the
+arrival leg) so the panel stays truthful; `audio-file` never crosses the WS;
+silent 2s reconnect forever — bridge down = zero behavior change (browser-native
+WS console warnings are expected and harmless). TouchOSC address map +
+examples: docs/OSC.md. NDI output is external capture (OBS/DistroAV or NDI
+Screen Capture) — setup + show-night checklist: docs/NDI.md.
 
 ## src/core/clock.ts — beat/bar clock, TWO STRICT MODES
 
@@ -173,7 +186,11 @@ slows. Shown in the panel as `motion ×N`.
   - **Sentence lifecycle** (`layout/lifecycle`, the "always moving" core):
     each box types in (`typeInSpeed`), lives `rng(lifeMin..lifeMax)/drive`
     seconds, types out backspace-style (`typeOutSpeed`), respawns with the
-    next pool sentence (staggered). `box.lifeVisible` = chars visible
+    next pool sentence (staggered). **Flash mode** (`layout/spawnStyle` =
+    'flash', rerolled per phase by the scheduler with `phases/flashProb`,
+    gated on `phases/enabled`): sentence appears WHOLE with a 0.3s all/none
+    blink (60ms period), lives, then cuts instantly — no typewriter either
+    way; the 'type' path is untouched (early branch). `box.lifeVisible` = chars visible
     (−1 = all); renderer min()s it with effect-driven `style.visibleChars`.
     Boxes with lifeVisible 0 are skipped entirely.
   - New sentences from the store batch a reshuffle at most every
@@ -277,6 +294,13 @@ resurrect.
   decay)), displacement (×energy on CPU), scanlines, noise, bloomish,
   u_invert (strobe via frameFlags), u_brightness. No WebGL2 → falls back to
   showing the raw 2D canvas.
+- **Blackout** (`master/blackout`): renderer eases a multiplier toward 0/1
+  (tau ~0.4s, runs even while paused) into the presentation-only brightness —
+  the VJ stop/start. Requires WebGL2 (fallback path has no brightness).
+- **QR screen** (`master/qrShow`): DOM overlay in render main.ts (fixed black
+  div + `public/qr.png` in a white frame + CTA + SUBMIT_URL) — DOM, not
+  canvas, so the post shader cannot distort the QR into unscannability.
+  Engine keeps running underneath.
 - `frameFlags.ts`: per-frame flags effects raise (invert), reset each frame.
 
 ## src/control/ — panel (the OSC contract)
@@ -299,9 +323,16 @@ resurrect.
 
 ## src/data/sentences.ts
 
-`SentenceStore` interface (getAll/onAdded) — the Supabase seam. ~230
-built-in sentences (multilingual sprinkle, 3–20 words, warm/funny/sincere).
-`data/injectRandom` trigger adds one (tests grows-over-the-night).
+`SentenceStore` interface (getAll/getBuiltin/getExternal/onAdded). ~230
+built-in sentences (multilingual sprinkle, 3–20 words, warm/funny/sincere) and
+an external pool (Supabase/sentences.json) kept SEPARATE internally; `getAll()`
+still merges. **DB mix**: `data/dbMix` (0–1, fraction of sentence picks drawn
+from the external pool) and `data/dbTakeoverAt` (int, default 50 — external
+count ≥ this forces mix = 1 and logs `crowd takeover` once). layoutEngine's
+`nextSentence()` + initial reshuffle picks are weighted draws with per-pool
+cursors (side RNG); effectiveMix = 0 while the external pool is empty.
+`data/injectRandom` trigger adds one to the EXTERNAL pool (simulates a crowd
+submission, exercising the mix path).
 `loadExternal()` fetches optional `/public/sentences.json` (JSON array of
 strings; deduped; 3–24 words) at startup — the dataset drop-in.
 `addExternal(raw)` is the LIVE ingress (Supabase): collapses whitespace/line
@@ -372,13 +403,10 @@ The "sentences about friends from the crowd" pipeline is built and deployed.
 13. Rhythmic effects sync to `audio.beatPos` epochs, not wall-clock seconds
     — that's what makes manual BPM actually drive everything.
 
-## Future seams (stage 2)
+## Future seams
 
-- **Supabase**: implement `SentenceStore` against a table with an `approved`
-  flag + realtime subscription → `onAdded`. Moderation UI comes with it.
-- **OSC/iPad**: Node bridge translating `/param/<path>` OSC → Transport
-  `param-set`. Requires a WebSocket `Transport` impl (interface is ready);
-  consumers untouched.
+- **Moderation**: flip the sentences table `approved` default to FALSE and
+  build an approve UI — the read path already filters on `approved`.
 - **Multi-font**: every box already carries `fontId` resolved through
   `src/core/fonts.ts` — add entries + @font-face, assign per box in the
   layout engine.
