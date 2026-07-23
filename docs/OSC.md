@@ -51,6 +51,27 @@ containing one `index.xml` (control names/labels are base64).
 work (QR overlay + eased brightness blackout) — the addresses above are live
 once that lands; the bridge needs no change either way, it forwards any path.
 
+## Control-name aliases — stock TouchOSC layouts just work
+
+The current TouchOSC app **drops the custom addresses** when importing the
+legacy `.touchosc` file, leaving every control on its default address
+(`/<page>/<controlName>`). The bridge therefore also matches the FINAL address
+segment (case- and spacing-insensitive: `M BPM` → `mbpm`) against this table —
+name a control one of these and its default message needs no editing:
+
+| Control name(s) | Maps to | Notes |
+| --- | --- | --- |
+| `bpm`, `c0` | `audio/manualBpm` | raw 0–1 fader auto-scaled to 70–180 |
+| `chaos`, `choas`, `c1` | `phases/chaos` | |
+| `skip`, `skipphase`, `c2` | `phases/next` (trigger) | release 0 ignored |
+| `qr`, `qrscreen`, `c3` | `master/qrShow` | |
+| `blackout`, `c4` | `master/blackout` | |
+| `mbpm`, `manualbpm`, `usemanualbpm` | `audio/useManualBpm` | |
+
+Values already outside 0–1 skip the auto-scale (assumed pre-scaled on the
+phone). New buttons: either name them per the table, or set an explicit
+`/param/...` path in the control's Messages panel — both work.
+
 ## Generic rules — every param is reachable
 
 The bridge doesn't know the param registry; it forwards **any** path:

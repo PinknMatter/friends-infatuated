@@ -96,6 +96,31 @@ function parsePacket(buf, out) {
 
 // ---- translation -----------------------------------------------------------
 
+// TouchOSC's DEFAULT message address is /<page>/<controlName> — its importer
+// drops custom osc_cs addresses from legacy layouts, so we map control NAMES
+// too. A stock layout then works with zero message editing on the phone: name
+// a control 'blackout' (or keep the generated c0..c4 names) and it just works.
+// scale: [min,max] maps a raw 0..1 fader onto the param's range; values
+// already outside 0..1 are passed through (assume the phone scaled them).
+const NAME_ALIASES = {
+  c0: { path: 'audio/manualBpm', scale: [70, 180] },
+  bpm: { path: 'audio/manualBpm', scale: [70, 180] },
+  c1: { path: 'phases/chaos' },
+  chaos: { path: 'phases/chaos' },
+  choas: { path: 'phases/chaos' }, // the operator's actual control name
+  c2: { path: 'phases/next', trigger: true },
+  skip: { path: 'phases/next', trigger: true },
+  skipphase: { path: 'phases/next', trigger: true },
+  c3: { path: 'master/qrShow' },
+  qr: { path: 'master/qrShow' },
+  qrscreen: { path: 'master/qrShow' },
+  c4: { path: 'master/blackout' },
+  blackout: { path: 'master/blackout' },
+  mbpm: { path: 'audio/useManualBpm' },
+  manualbpm: { path: 'audio/useManualBpm' },
+  usemanualbpm: { path: 'audio/useManualBpm' },
+};
+
 /** OSC message → TransportMessage JSON, or null if the address is not ours. */
 function translate({ address, args }) {
   if (address.startsWith('/param/')) {
@@ -112,7 +137,23 @@ function translate({ address, args }) {
     if (args.length && (args[0] === 0 || args[0] === false)) return null;
     return { type: 'param-trigger', path: address.slice('/trigger/'.length) };
   }
-  console.log(`[osc] unknown address ${address} — ignored (use /param/... or /trigger/...)`);
+  // TouchOSC default addresses: match the final segment against the alias
+  // table (case/spacing-insensitive: 'M BPM' → 'mbpm').
+  const name = address.split('/').filter(Boolean).pop() ?? '';
+  const alias = NAME_ALIASES[name.toLowerCase().replace(/[^a-z0-9]/gi, '')];
+  if (alias) {
+    if (alias.trigger) {
+      if (args.length && (args[0] === 0 || args[0] === false)) return null; // button release
+      return { type: 'param-trigger', path: alias.path };
+    }
+    if (args.length < 1) return null;
+    let value = args[0];
+    if (alias.scale && typeof value === 'number' && value >= 0 && value <= 1) {
+      value = alias.scale[0] + value * (alias.scale[1] - alias.scale[0]);
+    }
+    return { type: 'param-set', path: alias.path, value };
+  }
+  console.log(`[osc] unknown address ${address} — ignored (use /param/..., /trigger/..., or a known control name)`);
   return null;
 }
 
