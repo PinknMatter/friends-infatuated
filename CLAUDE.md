@@ -186,11 +186,16 @@ slows. Shown in the panel as `motion ×N`.
   - **Sentence lifecycle** (`layout/lifecycle`, the "always moving" core):
     each box types in (`typeInSpeed`), lives `rng(lifeMin..lifeMax)/drive`
     seconds, types out backspace-style (`typeOutSpeed`), respawns with the
-    next pool sentence (staggered). **Flash mode** (`layout/spawnStyle` =
-    'flash', rerolled per phase by the scheduler with `phases/flashProb`,
-    gated on `phases/enabled`): sentence appears WHOLE with a 0.3s all/none
-    blink (60ms period), lives, then cuts instantly — no typewriter either
-    way; the 'type' path is untouched (early branch). `box.lifeVisible` = chars visible
+    next pool sentence (staggered). **Spawn styles** (`layout/spawnStyle`,
+    rerolled per phase by the scheduler — one RNG roll split by
+    `phases/strobeProb` then `phases/flashProb`, gated on `phases/enabled`):
+    'flash' = sentence appears WHOLE with a 0.3s all/none blink (60ms
+    period), lives, cuts instantly; 'strobe' = instant swaps in quick
+    succession — a DIFFERENT sentence lands the same frame the last one
+    cuts, base life `layout/strobeLifeSecs`/drive with a per-box
+    deterministic 0.6–1.4× jitter (hash of box id — no stored state, so
+    style flips mid-life can't strand boxes) so the wall shimmers instead
+    of blinking in unison. The 'type' path is untouched (early branch). `box.lifeVisible` = chars visible
     (−1 = all); renderer min()s it with effect-driven `style.visibleChars`.
     Boxes with lifeVisible 0 are skipped entirely.
   - New sentences from the store batch a reshuffle at most every

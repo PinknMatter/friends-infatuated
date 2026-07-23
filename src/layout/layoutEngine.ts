@@ -303,8 +303,13 @@ export class LayoutEngine {
       for (const box of this.boxes) box.lifeVisible = -1;
       return;
     }
-    if (this.params.str('layout/spawnStyle') === 'flash') {
+    const spawnStyle = this.params.str('layout/spawnStyle');
+    if (spawnStyle === 'flash') {
       this.updateFlashLifecycles(time);
+      return;
+    }
+    if (spawnStyle === 'strobe') {
+      this.updateStrobeLifecycles(time);
       return;
     }
     const inSpeed = this.params.num('layout/typeInSpeed') * this.drive;
@@ -367,6 +372,42 @@ export class LayoutEngine {
         box.lifeVisible = -1;
       }
     }
+  }
+
+  /** Strobe spawn style: instant swaps — the sentence pops in whole, lives a
+   *  very short span, cuts, and a DIFFERENT sentence takes the slot the same
+   *  frame. Per-box deterministic jitter desyncs the swaps so the wall
+   *  shimmers instead of blinking in unison. */
+  private updateStrobeLifecycles(time: number): void {
+    const base = this.params.num('layout/strobeLifeSecs');
+    for (const box of this.boxes) {
+      // A box caught mid-backspace when the style flipped just swaps now.
+      if (box.outStart >= 0) {
+        this.strobeRespawn(box, time);
+        continue;
+      }
+      const since = time - box.spawnAt;
+      if (since < 0) {
+        box.lifeVisible = 0;
+        continue;
+      }
+      // Hash the box id into a stable 0.6..1.4× life factor (no stored state,
+      // survives style flips mid-life; box.lifetime is rolled for type mode
+      // and would strand boxes on multi-second lives here).
+      const h = (Math.imul(box.id ^ 0x9e3779b9, 0x85ebca6b) >>> 16) / 0xffff;
+      const life = (base * (0.6 + 0.8 * h)) / this.drive;
+      if (since > life) {
+        this.strobeRespawn(box, time);
+      } else {
+        box.lifeVisible = -1;
+      }
+    }
+  }
+
+  private strobeRespawn(box: TextBox, time: number): void {
+    this.respawn(box, this.nextSentence(), time);
+    box.spawnAt = time; // kill respawn()'s stagger: the next sentence lands NOW
+    box.lifeVisible = -1;
   }
 
   private applyGutter(r: Rect): Rect {

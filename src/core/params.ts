@@ -250,8 +250,11 @@ export const PARAM_DEFS: ParamDef[] = [
   // still. Scenes retarget the life range.
   B('layout/lifecycle', 'Sentence lifecycle (type in/out)', 'layout', true),
   // 'type' = typewriter in / backspace out; 'flash' = whole sentence blinks in,
-  // instant cut out. The scheduler rerolls this per phase (phases/flashProb).
-  E('layout/spawnStyle', 'Spawn style', 'layout', 'type', ['type', 'flash']),
+  // instant cut out; 'strobe' = instant swaps — a different sentence pops into
+  // the slot the moment the last one cuts, in quick succession. The scheduler
+  // rerolls this per phase (phases/flashProb + phases/strobeProb).
+  E('layout/spawnStyle', 'Spawn style', 'layout', 'type', ['type', 'flash', 'strobe']),
+  F('layout/strobeLifeSecs', 'Strobe life secs', 'layout', 0.6, 0.1, 3),
   F('layout/lifeMin', 'Life min secs', 'layout', 6, 1, 60),
   F('layout/lifeMax', 'Life max secs', 'layout', 24, 2, 120),
   F('layout/typeInSpeed', 'Type-in chars/sec', 'layout', 32, 5, 200, 1),
@@ -303,8 +306,10 @@ export const PARAM_DEFS: ParamDef[] = [
   F('phases/crossfadeBeats', 'Crossfade beats', 'phases', 6, 1, 32, 1),
   T('phases/next', 'Force next phase', 'phases'),
   B('phases/freeze', 'Freeze phase', 'phases', false),
-  // Probability that a new phase spawns sentences flash-style instead of typed.
-  F('phases/flashProb', 'Flash spawn prob', 'phases', 0.3, 0, 1),
+  // Probabilities that a new phase spawns sentences flash- or strobe-style
+  // instead of typed (rolled together; they should sum to < 1).
+  F('phases/flashProb', 'Flash spawn prob', 'phases', 0.2, 0, 1),
+  F('phases/strobeProb', 'Strobe spawn prob', 'phases', 0.2, 0, 1),
 
   // ---- post ----
   F('post/rgbSplit', 'RGB split', 'post', 0, 0, 1),
