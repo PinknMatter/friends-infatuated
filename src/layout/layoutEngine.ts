@@ -75,9 +75,11 @@ export class LayoutEngine {
   private lastAddReshuffle = 0;
   private pendingAdds = 0;
   private stage: Rect = { x: 0, y: 0, w: 1920, h: 1080 };
-  // QR takeover: every box shows this one sentence (typewriter face, few huge
-  // boxes) while set — the effect pipeline runs on it like any other content.
-  private pinned: string | null = null;
+  // QR takeover: boxes cycle through this small set of messages (typewriter
+  // face, few huge boxes) while set — the effect pipeline runs on them like
+  // any other content.
+  private pinned: string[] | null = null;
+  private pinnedCursor = 0;
   private restartPending = false;
 
   constructor(
@@ -117,10 +119,11 @@ export class LayoutEngine {
     this.reshufflePending = true;
   }
 
-  /** Pin the whole layout to one sentence (null = back to the pools). */
-  setPinnedSentence(sentence: string | null): void {
-    if (sentence === this.pinned) return;
-    this.pinned = sentence;
+  /** Pin the whole layout to a small message set (null = back to the pools). */
+  setPinnedSentences(sentences: string[] | null): void {
+    if (JSON.stringify(sentences) === JSON.stringify(this.pinned)) return;
+    this.pinned = sentences && sentences.length > 0 ? sentences : null;
+    this.pinnedCursor = 0;
     this.requestReshuffle();
   }
 
@@ -313,7 +316,11 @@ export class LayoutEngine {
    *  data/dbMix sets the crowd fraction; at data/dbTakeoverAt crowd sentences
    *  the builtins retire entirely. Each pool keeps its own cursor. */
   private nextSentence(): string {
-    if (this.pinned) return this.pinned;
+    if (this.pinned) {
+      const s = this.pinned[this.pinnedCursor % this.pinned.length];
+      this.pinnedCursor++;
+      return s;
+    }
     const external = this.store.getExternal();
     let mix: number;
     if (external.length === 0) {

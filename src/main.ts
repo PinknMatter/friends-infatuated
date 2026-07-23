@@ -69,7 +69,7 @@ params.onChange('master/seed', () => layout.requestReshuffle());
 // pipeline (typewriter, scramble, strobe, trails…) plays the headline like
 // any other content. The only DOM is a small STATIC QR card (DOM so the post
 // shader can never distort the code into unscannability).
-const QR_HEADLINE = 'KEEP YOUR FRIENDS CLOSE';
+const QR_HEADLINES = ['KEEP YOUR FRIENDS CLOSE', 'ADD TO THE PROJECT'];
 
 function buildQrCard(): HTMLDivElement {
   const card = document.createElement('div');
@@ -113,7 +113,7 @@ params.onChange('master/blackout', (v) => {
 
 params.onChange('master/qrShow', (v) => {
   qrCard.style.display = v ? 'flex' : 'none';
-  layout.setPinnedSentence(v ? QR_HEADLINE : null);
+  layout.setPinnedSentences(v ? QR_HEADLINES : null);
   params.trigger('phases/next'); // real crossfade into/out of the takeover
 });
 
