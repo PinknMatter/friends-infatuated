@@ -229,7 +229,7 @@ export const PARAM_DEFS: ParamDef[] = [
   I('master/bgGray', 'Background gray', 'master', 0, 0, 60),
   I('master/seed', 'Seed', 'master', 1337, 1, 999999),
   B('master/paused', 'Paused', 'master', false),
-  E('master/fontId', 'Font', 'master', 'main', ['main']),
+  E('master/fontId', 'Font', 'master', 'main', ['main', 'typewriter']),
 
   // ---- layout ----
   I('layout/minBoxes', 'Min boxes', 'layout', 10, 2, 120),

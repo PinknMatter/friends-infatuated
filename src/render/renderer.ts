@@ -9,6 +9,7 @@ import type { Clock } from '../core/clock';
 import type { Transport } from '../core/transport';
 import type { LayoutEngine, TextBox } from '../layout/layoutEngine';
 import type { PhaseScheduler } from '../phases/scheduler';
+import { resolveFont } from '../core/fonts';
 import type { AudioAnalyser } from '../audio/analyser';
 import { EFFECTS } from '../effects/registry';
 import { resetStyle, type AudioFrame, type EffectCtx, type LayoutHandle } from '../effects/types';
@@ -242,6 +243,8 @@ export class Renderer {
 
     const ctx2d = g.drawingContext as CanvasRenderingContext2D;
     g.push();
+    // Per-box face (QR takeover uses 'typewriter'); pop restores it.
+    g.textFont(resolveFont(box.fontId).family);
 
     // Whole-box background fill.
     if (style.boxFill && style.boxOpacity > 0.01) {

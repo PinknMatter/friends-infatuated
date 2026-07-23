@@ -14,6 +14,11 @@ export const FONTS: Record<string, FontDef> = {
     id: 'main',
     family: 'Space Grotesk',
   },
+  // System font (no file to load) — the QR takeover phase uses this.
+  typewriter: {
+    id: 'typewriter',
+    family: 'Courier New',
+  },
 };
 
 export function resolveFont(id: string): FontDef {

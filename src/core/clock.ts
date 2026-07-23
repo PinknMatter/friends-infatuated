@@ -28,6 +28,13 @@ export class Clock {
   constructor(params: ParamStore) {
     this.params = params;
     params.onChange('audio/tapTempo', () => this.tap());
+    // Mode switches must not rescale elapsed time: re-anchor so the beat
+    // COUNT carries over (manual→auto with differing tempos leapt barPosition
+    // and skipped phases — real user-reported bug).
+    params.onChange('audio/useManualBpm', () => {
+      if (this.lastUpdateTime < 0) return;
+      this.phaseOrigin = this.lastUpdateTime - this.beatPosition * this.beatDuration;
+    });
   }
 
   get bpm(): number {

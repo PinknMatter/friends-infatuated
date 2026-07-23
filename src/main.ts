@@ -63,115 +63,51 @@ transport.onMessage((msg) => {
 
 params.onChange('master/seed', () => layout.requestReshuffle());
 
-// ---- QR screen: DOM overlay (above the canvas, so the post shader can never
-// distort the code into unscannability) that reads as a PHASE, not a slide:
-// the engine keeps running visibly behind a scrim, the headline types itself
-// in and out in a lifecycle-style loop, the QR frame breathes. Built once,
-// shown on master/qrShow.
+// ---- QR screen: a TEMPLATED PHASE, not a slide. Toggling master/qrShow pins
+// the layout to one sentence — a few huge typewriter-face boxes all reading
+// KEEP YOUR FRIENDS CLOSE — and forces a phase change, so the real effect
+// pipeline (typewriter, scramble, strobe, trails…) plays the headline like
+// any other content. The only DOM is a small STATIC QR card (DOM so the post
+// shader can never distort the code into unscannability).
 const QR_HEADLINE = 'KEEP YOUR FRIENDS CLOSE';
-const QR_TYPE_MS = 55; // per char, ≈ the engine's type-in feel
 
-function buildQrOverlay(): { overlay: HTMLDivElement; headText: HTMLSpanElement } {
-  const style = document.createElement('style');
-  style.textContent = [
-    '@keyframes qr-breathe { 0%,100% { transform:scale(1); } 50% { transform:scale(1.035); } }',
-    '@keyframes qr-cursor { 0%,49% { opacity:1; } 50%,100% { opacity:0; } }',
-    // rare soft dips, like flashInOut grazing the headline (gentle, not a strobe)
-    '@keyframes qr-flicker { 0%,91%,95%,100% { opacity:1; } 92%,94% { opacity:0.3; } }',
-  ].join('\n');
-  document.head.appendChild(style);
-
-  const overlay = document.createElement('div');
-  overlay.id = 'qr-overlay';
-  overlay.style.cssText = [
+function buildQrCard(): HTMLDivElement {
+  const card = document.createElement('div');
+  card.id = 'qr-card';
+  card.style.cssText = [
     'position:fixed',
-    'inset:0',
+    'left:50%',
+    'bottom:44px',
+    'transform:translateX(-50%)',
     'z-index:50',
     'display:none',
     'flex-direction:column',
     'align-items:center',
-    'justify-content:center',
-    'gap:36px',
-    'background:rgba(0,0,0,0.45)', // scrim — the phases stay visible behind
-    "font-family:'Space Grotesk',monospace",
-    'color:#fff',
+    'gap:8px',
+    'background:#fff',
+    'padding:16px 20px',
+    "font-family:'Courier New',monospace",
+    'color:#000',
     'text-align:center',
-    'cursor:none',
     'pointer-events:none',
   ].join(';');
-
-  const heading = document.createElement('div');
-  heading.style.cssText =
-    'font-size:56px;letter-spacing:0.12em;font-weight:700;max-width:88vw;' +
-    'min-height:1.2em;animation:qr-flicker 9s linear infinite;' +
-    'text-shadow:0 0 24px rgba(0,0,0,0.9)';
-  const headText = document.createElement('span');
-  const cursor = document.createElement('span');
-  cursor.textContent = '_';
-  cursor.style.cssText = 'animation:qr-cursor 1s steps(1) infinite';
-  heading.append(headText, cursor);
-
-  const frame = document.createElement('div');
-  frame.style.cssText =
-    'background:#fff;padding:28px;line-height:0;' +
-    'animation:qr-breathe 4s ease-in-out infinite;box-shadow:0 0 60px rgba(0,0,0,0.8)';
   const img = document.createElement('img');
   img.src = '/qr.png';
   img.alt = SUBMIT_URL;
-  img.style.cssText = 'width:min(38vh,420px);height:auto;image-rendering:pixelated';
-  frame.appendChild(img);
-
-  const sub = document.createElement('div');
-  sub.textContent = 'scan · write · it lands on the wall';
-  sub.style.cssText =
-    'font-size:24px;letter-spacing:0.1em;color:#ccc;text-shadow:0 0 16px rgba(0,0,0,0.9)';
-
+  img.style.cssText = 'width:min(24vh,260px);height:auto;image-rendering:pixelated';
   const url = document.createElement('div');
   url.textContent = SUBMIT_URL.replace(/^https?:\/\//, '');
-  url.style.cssText =
-    'font-size:28px;letter-spacing:0.06em;color:#e8e8e8;text-shadow:0 0 16px rgba(0,0,0,0.9)';
-
-  overlay.append(heading, frame, sub, url);
-  document.body.appendChild(overlay);
-  return { overlay, headText };
+  url.style.cssText = 'font-size:17px;letter-spacing:0.03em';
+  card.append(img, url);
+  document.body.appendChild(card);
+  return card;
 }
 
-const qr = buildQrOverlay();
-let qrTypeTimer: number | null = null;
-
-// Lifecycle-style headline loop: type in → hold → backspace → brief empty →
-// again. Runs only while the overlay is visible.
-function startQrTyping(): void {
-  let chars = 0;
-  let dir = 1;
-  let hold = 0;
-  qr.headText.textContent = '';
-  qrTypeTimer = window.setInterval(() => {
-    if (hold > 0) {
-      hold--;
-      return;
-    }
-    chars += dir === 1 ? 1 : -2; // backspace at ~2× like the engine's type-out
-    if (chars >= QR_HEADLINE.length) {
-      chars = QR_HEADLINE.length;
-      dir = -1;
-      hold = Math.round(3500 / QR_TYPE_MS);
-    } else if (chars <= 0) {
-      chars = 0;
-      dir = 1;
-      hold = Math.round(700 / QR_TYPE_MS);
-    }
-    qr.headText.textContent = QR_HEADLINE.slice(0, chars);
-  }, QR_TYPE_MS);
-}
-
+const qrCard = buildQrCard();
 params.onChange('master/qrShow', (v) => {
-  qr.overlay.style.display = v ? 'flex' : 'none';
-  if (qrTypeTimer !== null) {
-    window.clearInterval(qrTypeTimer);
-    qrTypeTimer = null;
-  }
-  if (v) startQrTyping();
+  qrCard.style.display = v ? 'flex' : 'none';
+  layout.setPinnedSentence(v ? QR_HEADLINE : null);
+  params.trigger('phases/next'); // real crossfade into/out of the takeover
 });
 
 new p5((p: p5) => {

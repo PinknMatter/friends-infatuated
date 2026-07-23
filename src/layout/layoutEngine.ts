@@ -11,6 +11,7 @@ import {
   type Rect,
 } from './bsp';
 import { fitText, type TextLayout } from './fitText';
+import { resolveFont } from '../core/fonts';
 import { RNG } from '../core/rng';
 import type { ParamStore } from '../core/params';
 import type { SentenceStore } from '../data/sentences';
@@ -74,6 +75,9 @@ export class LayoutEngine {
   private lastAddReshuffle = 0;
   private pendingAdds = 0;
   private stage: Rect = { x: 0, y: 0, w: 1920, h: 1080 };
+  // QR takeover: every box shows this one sentence (typewriter face, few huge
+  // boxes) while set — the effect pipeline runs on it like any other content.
+  private pinned: string | null = null;
 
   constructor(
     params: ParamStore,
@@ -98,6 +102,13 @@ export class LayoutEngine {
 
   requestReshuffle(): void {
     this.reshufflePending = true;
+  }
+
+  /** Pin the whole layout to one sentence (null = back to the pools). */
+  setPinnedSentence(sentence: string | null): void {
+    if (sentence === this.pinned) return;
+    this.pinned = sentence;
+    this.requestReshuffle();
   }
 
   /** Shift the whole grid as a unit: every split ratio glides to a new value,
@@ -163,7 +174,9 @@ export class LayoutEngine {
 
     const minBoxes = this.params.num('layout/minBoxes');
     const maxBoxes = Math.max(minBoxes, this.params.num('layout/maxBoxes'));
-    const target = rng.int(minBoxes, maxBoxes);
+    // Pinned takeover reads as a monolith: a few huge boxes, whatever the
+    // scene params say (they are restored untouched when unpinned).
+    const target = this.pinned ? rng.int(2, 4) : rng.int(minBoxes, maxBoxes);
 
     this.tree = buildTree(rng, this.stage, {
       targetLeaves: target,
@@ -248,6 +261,16 @@ export class LayoutEngine {
 
     this.anims = newAnims;
     this.boxes = newAnims.map((a) => a.box);
+
+    // Reshuffle is the font boundary: pinned boxes wear the typewriter face,
+    // everything else follows master/fontId (reused boxes included).
+    const fontId = this.pinned ? 'typewriter' : this.params.str('master/fontId');
+    for (const box of this.boxes) {
+      if (box.fontId !== fontId) {
+        box.fontId = fontId;
+        box.layout = null; // refit with the new face
+      }
+    }
   }
 
   // ---- sentence lifecycle: type in → live → type out → respawn ----
@@ -263,6 +286,7 @@ export class LayoutEngine {
    *  data/dbMix sets the crowd fraction; at data/dbTakeoverAt crowd sentences
    *  the builtins retire entirely. Each pool keeps its own cursor. */
   private nextSentence(): string {
+    if (this.pinned) return this.pinned;
     const external = this.store.getExternal();
     let mix: number;
     if (external.length === 0) {
@@ -444,6 +468,8 @@ export class LayoutEngine {
         Math.abs(innerW - box.fitW) > 3 ||
         Math.abs(innerH - box.fitH) > 3
       ) {
+        // fitText measures with whatever font g carries — set the box's own.
+        g.textFont(resolveFont(box.fontId).family);
         box.layout = fitText(
           g,
           box.sentence,
