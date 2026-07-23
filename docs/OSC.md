@@ -67,6 +67,9 @@ name a control one of these and its default message needs no editing:
 | `qr`, `qrscreen`, `c3` | `master/qrShow` | |
 | `blackout`, `c4` | `master/blackout` | |
 | `mbpm`, `manualbpm`, `usemanualbpm` | `audio/useManualBpm` | |
+| `tap`, `taptempo` | `audio/tapTempo` (trigger) | needs ≥3 taps within 3s |
+| `shufflegridnow`, `shiftgrid`, `morph` | `layout/morph` (trigger) | grid shifts as one unit, boxes keep sentences |
+| `shuffle`, `reshuffle` | `layout/reshuffle` (trigger) | full grid rebuild |
 
 Values already outside 0–1 skip the auto-scale (assumed pre-scaled on the
 phone). New buttons: either name them per the table, or set an explicit

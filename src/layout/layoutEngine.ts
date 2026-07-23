@@ -78,6 +78,7 @@ export class LayoutEngine {
   // QR takeover: every box shows this one sentence (typewriter face, few huge
   // boxes) while set — the effect pipeline runs on it like any other content.
   private pinned: string | null = null;
+  private restartPending = false;
 
   constructor(
     params: ParamStore,
@@ -109,6 +110,13 @@ export class LayoutEngine {
     if (sentence === this.pinned) return;
     this.pinned = sentence;
     this.requestReshuffle();
+  }
+
+  /** Fresh start (blackout exit): new grid AND every box re-types from
+   *  nothing, staggered — instead of reappearing mid-phase. */
+  restartLifecycles(): void {
+    this.restartPending = true;
+    this.reshufflePending = true;
   }
 
   /** Shift the whole grid as a unit: every split ratio glides to a new value,
@@ -270,6 +278,13 @@ export class LayoutEngine {
         box.fontId = fontId;
         box.layout = null; // refit with the new face
       }
+    }
+
+    // Fresh start: reused boxes would otherwise stay fully visible — force
+    // EVERY box (kept sentences included) to type in from nothing.
+    if (this.restartPending) {
+      this.restartPending = false;
+      for (const box of this.boxes) this.respawn(box, box.sentence, time);
     }
   }
 

@@ -119,6 +119,15 @@ const NAME_ALIASES = {
   mbpm: { path: 'audio/useManualBpm' },
   manualbpm: { path: 'audio/useManualBpm' },
   usemanualbpm: { path: 'audio/useManualBpm' },
+  taptempo: { path: 'audio/tapTempo', trigger: true },
+  tap: { path: 'audio/tapTempo', trigger: true },
+  // 'shift the grid' = morph (ratios glide, boxes keep their sentences)
+  shufflegridnow: { path: 'layout/morph', trigger: true },
+  shiftgrid: { path: 'layout/morph', trigger: true },
+  morph: { path: 'layout/morph', trigger: true },
+  // full rebuild stays reachable under explicit names
+  shuffle: { path: 'layout/reshuffle', trigger: true },
+  reshuffle: { path: 'layout/reshuffle', trigger: true },
 };
 
 /** OSC message → TransportMessage JSON, or null if the address is not ours. */

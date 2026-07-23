@@ -77,8 +77,8 @@ function buildQrCard(): HTMLDivElement {
   card.style.cssText = [
     'position:fixed',
     'left:50%',
-    'bottom:44px',
-    'transform:translateX(-50%)',
+    'top:50%',
+    'transform:translate(-50%,-50%)',
     'z-index:50',
     'display:none',
     'flex-direction:column',
@@ -104,6 +104,13 @@ function buildQrCard(): HTMLDivElement {
 }
 
 const qrCard = buildQrCard();
+
+// Blackout exit = a fresh start: the words draw in from black instead of the
+// scene reappearing mid-phase. (Blackout ON just fades — nothing to reset.)
+params.onChange('master/blackout', (v) => {
+  if (!v) layout.restartLifecycles();
+});
+
 params.onChange('master/qrShow', (v) => {
   qrCard.style.display = v ? 'flex' : 'none';
   layout.setPinnedSentence(v ? QR_HEADLINE : null);
