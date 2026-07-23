@@ -9,6 +9,7 @@ import { Clock } from './core/clock';
 import { resolveFont } from './core/fonts';
 import { StaticSentenceStore } from './data/sentences';
 import { startSupabaseSync } from './data/supabaseSync';
+import { SUBMIT_URL } from './data/supabaseConfig';
 import { LayoutEngine } from './layout/layoutEngine';
 import { clearFitCache } from './layout/fitText';
 import { AudioAnalyser } from './audio/analyser';
@@ -37,7 +38,9 @@ void store.loadExternal().then((n) => {
 // supabaseConfig is empty.
 startSupabaseSync(store, (text) => transport.send({ type: 'log', text }));
 
-const layout = new LayoutEngine(params, store, W, H);
+const layout = new LayoutEngine(params, store, W, H, (text) =>
+  transport.send({ type: 'log', text }),
+);
 const audio = new AudioAnalyser(params, clock);
 const scheduler = new PhaseScheduler(params, clock);
 
@@ -56,6 +59,58 @@ transport.onMessage((msg) => {
 });
 
 params.onChange('master/seed', () => layout.requestReshuffle());
+
+// ---- QR screen: fullscreen DOM overlay (above the canvas, so the post
+// shader can never distort the code into unscannability). Built once, shown
+// on master/qrShow.
+function buildQrOverlay(): HTMLDivElement {
+  const overlay = document.createElement('div');
+  overlay.id = 'qr-overlay';
+  overlay.style.cssText = [
+    'position:fixed',
+    'inset:0',
+    'z-index:50',
+    'display:none',
+    'flex-direction:column',
+    'align-items:center',
+    'justify-content:center',
+    'gap:36px',
+    'background:#000',
+    "font-family:'Space Grotesk',monospace",
+    'color:#fff',
+    'text-align:center',
+    'cursor:none',
+  ].join(';');
+
+  const heading = document.createElement('div');
+  heading.textContent = 'WRITE SOMETHING TRUE ABOUT A FRIEND';
+  heading.style.cssText = 'font-size:52px;letter-spacing:0.12em;font-weight:700;max-width:80vw';
+
+  const sub = document.createElement('div');
+  sub.textContent = 'a sentence, a memory, a poem';
+  sub.style.cssText = 'font-size:26px;letter-spacing:0.08em;color:#bbb;margin-top:-18px';
+
+  const frame = document.createElement('div');
+  frame.style.cssText = 'background:#fff;padding:28px;line-height:0';
+  const img = document.createElement('img');
+  img.src = '/qr.png';
+  img.alt = SUBMIT_URL;
+  img.style.cssText = 'width:min(38vh,420px);height:auto;image-rendering:pixelated';
+  frame.appendChild(img);
+
+  const url = document.createElement('div');
+  url.textContent = SUBMIT_URL.replace(/^https?:\/\//, '');
+  url.style.cssText = 'font-size:28px;letter-spacing:0.06em;color:#e8e8e8';
+
+  overlay.append(heading, sub, frame, url);
+  document.body.appendChild(overlay);
+  return overlay;
+}
+
+const qrOverlay = buildQrOverlay();
+params.onChange('master/qrShow', (v) => {
+  qrOverlay.style.display = v ? 'flex' : 'none';
+});
 
 new p5((p: p5) => {
   let g: p5.Graphics;

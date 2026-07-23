@@ -222,6 +222,10 @@ const E = (
 export const PARAM_DEFS: ParamDef[] = [
   // ---- master ----
   F('master/brightness', 'Brightness', 'master', 1, 0, 1),
+  // Presentation-only fades (renderer eases toward it, post output multiplies).
+  B('master/blackout', 'BLACKOUT', 'master', false),
+  // Fullscreen DOM overlay with the submission QR code (post shader can't touch it).
+  B('master/qrShow', 'QR screen', 'master', false),
   I('master/bgGray', 'Background gray', 'master', 0, 0, 60),
   I('master/seed', 'Seed', 'master', 1337, 1, 999999),
   B('master/paused', 'Paused', 'master', false),
@@ -245,6 +249,9 @@ export const PARAM_DEFS: ParamDef[] = [
   // span, types out, respawns with a fresh sentence. The screen never sits
   // still. Scenes retarget the life range.
   B('layout/lifecycle', 'Sentence lifecycle (type in/out)', 'layout', true),
+  // 'type' = typewriter in / backspace out; 'flash' = whole sentence blinks in,
+  // instant cut out. The scheduler rerolls this per phase (phases/flashProb).
+  E('layout/spawnStyle', 'Spawn style', 'layout', 'type', ['type', 'flash']),
   F('layout/lifeMin', 'Life min secs', 'layout', 6, 1, 60),
   F('layout/lifeMax', 'Life max secs', 'layout', 24, 2, 120),
   F('layout/typeInSpeed', 'Type-in chars/sec', 'layout', 32, 5, 200, 1),
@@ -296,6 +303,8 @@ export const PARAM_DEFS: ParamDef[] = [
   F('phases/crossfadeBeats', 'Crossfade beats', 'phases', 6, 1, 32, 1),
   T('phases/next', 'Force next phase', 'phases'),
   B('phases/freeze', 'Freeze phase', 'phases', false),
+  // Probability that a new phase spawns sentences flash-style instead of typed.
+  F('phases/flashProb', 'Flash spawn prob', 'phases', 0.3, 0, 1),
 
   // ---- post ----
   F('post/rgbSplit', 'RGB split', 'post', 0, 0, 1),
@@ -308,6 +317,10 @@ export const PARAM_DEFS: ParamDef[] = [
 
   // ---- data ----
   T('data/injectRandom', 'Inject random sentence', 'data'),
+  // Fraction of sentence picks drawn from the crowd (Supabase/JSON) pool.
+  F('data/dbMix', 'DB sentence mix', 'data', 0.5, 0, 1),
+  // Once the crowd pool reaches this count, builtins retire (mix forced to 1).
+  I('data/dbTakeoverAt', 'DB takeover at count', 'data', 50, 0, 200),
 
   // ---- per-effect knobs ----
   // typewriter

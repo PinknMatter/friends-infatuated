@@ -147,6 +147,13 @@ export class PhaseScheduler {
     this.previous = this.current;
     this.current = this.generatePhase(this.clock.barPosition);
     this.crossfadeStartBeat = this.clock.beatPosition;
+    // Reroll the spawn style with the phase: some phases flash sentences in
+    // whole instead of typing. Goes through params.set so the panel stays
+    // truthful; left alone in manual tuning mode (phases/enabled off).
+    if (this.params.bool('phases/enabled')) {
+      const flash = this.rootRng.chance(this.params.num('phases/flashProb'));
+      this.params.set('layout/spawnStyle', flash ? 'flash' : 'type');
+    }
     if (this.lastCtx) {
       for (const id of this.current.effects.keys()) {
         effectById.get(id)?.onPhaseEnter?.(this.lastCtx);

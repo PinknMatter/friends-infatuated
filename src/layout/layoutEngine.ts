@@ -46,6 +46,11 @@ interface BoxAnim {
 
 const easeInOut = (t: number) => (t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2);
 
+// Flash spawn: whole sentence blinks (all/none) for this long after spawnAt,
+// then holds fully visible; death is an instant cut (no backspace).
+const FLASH_FLICKER_SECS = 0.3;
+const FLASH_BLINK_SECS = 0.06;
+
 export class LayoutEngine {
   boxes: TextBox[] = [];
 
@@ -54,7 +59,11 @@ export class LayoutEngine {
   private tree: BSPNode | null = null;
   private anims: BoxAnim[] = [];
   private nextBoxId = 0;
-  private sentenceCursor = 0;
+  private builtinCursor = 0;
+  private externalCursor = 0;
+  private mixRng = new RNG(0xd1ce); // side RNG for the DB/builtin draw only
+  private takeoverLogged = false;
+  private log: (text: string) => void;
   private breatheAmount = 0;
   private time = 0;
   private reshufflePending = false;
@@ -66,9 +75,16 @@ export class LayoutEngine {
   private pendingAdds = 0;
   private stage: Rect = { x: 0, y: 0, w: 1920, h: 1080 };
 
-  constructor(params: ParamStore, store: SentenceStore, width: number, height: number) {
+  constructor(
+    params: ParamStore,
+    store: SentenceStore,
+    width: number,
+    height: number,
+    log: (text: string) => void = () => {},
+  ) {
     this.params = params;
     this.store = store;
+    this.log = log;
     this.stage = { x: 0, y: 0, w: width, h: height };
     params.onChange('layout/reshuffle', () => this.requestReshuffle());
     params.onChange('layout/morph', () => this.requestMorph());
@@ -163,12 +179,10 @@ export class LayoutEngine {
     );
 
     // Pair sentences to rects: longest sentences → largest boxes.
-    const pool = this.store.getAll();
     const picked: string[] = [];
     for (let i = 0; i < leaves.length; i++) {
-      picked.push(pool[(this.sentenceCursor + i) % pool.length]);
+      picked.push(this.nextSentence());
     }
-    this.sentenceCursor = (this.sentenceCursor + leaves.length) % pool.length;
 
     const rectOrder = leaves
       .map((r, slot) => ({ slot, area: r.w * r.h }))
@@ -245,10 +259,31 @@ export class LayoutEngine {
     return this.lifeRng.range(min, max) / this.drive;
   }
 
+  /** Weighted draw between the crowd (external) pool and the builtin pool.
+   *  data/dbMix sets the crowd fraction; at data/dbTakeoverAt crowd sentences
+   *  the builtins retire entirely. Each pool keeps its own cursor. */
   private nextSentence(): string {
-    const pool = this.store.getAll();
-    const s = pool[this.sentenceCursor % pool.length];
-    this.sentenceCursor = (this.sentenceCursor + 1) % pool.length;
+    const external = this.store.getExternal();
+    let mix: number;
+    if (external.length === 0) {
+      mix = 0;
+    } else if (external.length >= this.params.num('data/dbTakeoverAt')) {
+      mix = 1;
+      if (!this.takeoverLogged) {
+        this.takeoverLogged = true;
+        this.log(`crowd takeover: ${external.length} sentences, builtins retired`);
+      }
+    } else {
+      mix = this.params.num('data/dbMix');
+    }
+    if (this.mixRng.next() < mix) {
+      const s = external[this.externalCursor % external.length];
+      this.externalCursor = (this.externalCursor + 1) % external.length;
+      return s;
+    }
+    const builtin = this.store.getBuiltin();
+    const s = builtin[this.builtinCursor % builtin.length];
+    this.builtinCursor = (this.builtinCursor + 1) % builtin.length;
     return s;
   }
 
@@ -266,6 +301,10 @@ export class LayoutEngine {
   private updateLifecycles(time: number): void {
     if (!this.params.bool('layout/lifecycle')) {
       for (const box of this.boxes) box.lifeVisible = -1;
+      return;
+    }
+    if (this.params.str('layout/spawnStyle') === 'flash') {
+      this.updateFlashLifecycles(time);
       return;
     }
     const inSpeed = this.params.num('layout/typeInSpeed') * this.drive;
@@ -297,6 +336,33 @@ export class LayoutEngine {
       if (time > box.spawnAt + typeInDur + box.lifetime) {
         box.outStart = time;
         box.lifeVisible = total;
+      } else {
+        box.lifeVisible = -1;
+      }
+    }
+  }
+
+  /** Flash spawn style: the sentence appears WHOLE with a short blink flicker,
+   *  lives its span, then cuts to nothing instantly. Type speeds unused. */
+  private updateFlashLifecycles(time: number): void {
+    for (const box of this.boxes) {
+      // A box caught mid-backspace when the style flipped just cuts now.
+      if (box.outStart >= 0) {
+        this.respawn(box, this.nextSentence(), time);
+        continue;
+      }
+      const since = time - box.spawnAt;
+      if (since < 0) {
+        box.lifeVisible = 0;
+        continue;
+      }
+      if (since < FLASH_FLICKER_SECS) {
+        box.lifeVisible =
+          Math.floor(since / FLASH_BLINK_SECS) % 2 === 0 ? -1 : 0;
+        continue;
+      }
+      if (since > FLASH_FLICKER_SECS + box.lifetime) {
+        this.respawn(box, this.nextSentence(), time); // instant cut, no backspace
       } else {
         box.lifeVisible = -1;
       }

@@ -17,6 +17,10 @@ import { PostPass } from './post/post';
 
 const clamp01 = (v: number) => Math.min(1, Math.max(0, v));
 
+// Blackout ease time constant (secs): fade to/from black feels like a dimmer,
+// not a cut. Presentation-only — trails/feedback keep running underneath.
+const BLACKOUT_TAU = 0.4;
+
 export class Renderer {
   private g: p5.Graphics;
   private params: ParamStore;
@@ -43,6 +47,7 @@ export class Renderer {
   private beatSinceStatus = false;
   private detectedSinceStatus = false;
   private driveEnergy = 0; // slow-smoothed energy (tracks the section, not the beat)
+  private blackoutEase = 1; // eased multiplier: → 0 while master/blackout is on
 
   constructor(opts: {
     g: p5.Graphics;
@@ -136,7 +141,16 @@ export class Renderer {
       if (this.params.bool('audio/beatMonitor')) this.drawBeatMonitor(time, audioFrame);
     }
 
-    // Post pass (or direct blit if post failed to init).
+    // Blackout: ease the presentation brightness toward 0/1 (runs even while
+    // paused so stop/start always answers). Snap when close so full black is
+    // actually full black.
+    const blackoutTarget = this.params.bool('master/blackout') ? 0 : 1;
+    this.blackoutEase += (blackoutTarget - this.blackoutEase) * Math.min(1, dt / BLACKOUT_TAU);
+    if (Math.abs(this.blackoutEase - blackoutTarget) < 0.002) this.blackoutEase = blackoutTarget;
+
+    // Post pass (or direct blit if post failed to init). NOTE: without WebGL2
+    // the raw 2D canvas is shown directly and brightness never applies there,
+    // so blackout requires WebGL2.
     if (this.post) {
       const p = (key: string) =>
         clamp01(Math.max(this.params.num(`post/${key}`), this.scheduler.postDriveOf(key)));
@@ -149,7 +163,7 @@ export class Renderer {
         noise: enabled ? p('noise') : 0,
         bloomish: enabled ? p('bloomish') : 0,
         invert: enabled ? frameFlags.invert : 0,
-        brightness: this.params.num('master/brightness'),
+        brightness: this.params.num('master/brightness') * this.blackoutEase,
       });
     }
 

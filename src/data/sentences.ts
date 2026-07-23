@@ -4,7 +4,12 @@
 // with an `approved` flag).
 
 export interface SentenceStore {
+  /** Builtin + external pools merged (legacy consumers). */
   getAll(): string[];
+  /** The hardcoded pool. */
+  getBuiltin(): string[];
+  /** Crowd pool: Supabase submissions, sentences.json, injected extras. */
+  getExternal(): string[];
   onAdded(cb: (sentence: string) => void): void;
 }
 
@@ -255,16 +260,31 @@ const EXTRA: string[] = [
 ];
 
 export class StaticSentenceStore implements SentenceStore {
-  private sentences: string[] = [...POOL];
+  // Two pools kept apart so the layout engine can weight crowd sentences
+  // against builtins (data/dbMix) and retire builtins at takeover.
+  private builtin: string[] = [...POOL];
+  private external: string[] = [];
   private extras: string[] = [...EXTRA];
   private listeners: ((s: string) => void)[] = [];
 
   getAll(): string[] {
-    return [...this.sentences];
+    return [...this.builtin, ...this.external];
+  }
+
+  getBuiltin(): string[] {
+    return [...this.builtin];
+  }
+
+  getExternal(): string[] {
+    return [...this.external];
   }
 
   onAdded(cb: (sentence: string) => void): void {
     this.listeners.push(cb);
+  }
+
+  private has(s: string): boolean {
+    return this.builtin.includes(s) || this.external.includes(s);
   }
 
   /**
@@ -276,19 +296,20 @@ export class StaticSentenceStore implements SentenceStore {
     const s = raw.replace(/\s+/g, ' ').trim();
     const words = s.split(' ').length;
     if (s.length < 3 || s.length > 300 || words > 40) return false;
-    if (this.sentences.includes(s)) return false;
-    this.sentences.push(s);
+    if (this.has(s)) return false;
+    this.external.push(s);
     for (const cb of this.listeners) cb(s);
     return true;
   }
 
-  /** Wired to the data/injectRandom trigger in the control panel. */
+  /** Wired to the data/injectRandom trigger in the control panel. Feeds the
+   *  external pool — it simulates a crowd submission (tests the DB mix path). */
   injectRandom(): void {
     const s =
       this.extras.length > 0
         ? this.extras.splice(Math.floor(Math.random() * this.extras.length), 1)[0]
         : POOL[Math.floor(Math.random() * POOL.length)];
-    this.sentences.push(s);
+    this.external.push(s);
     for (const cb of this.listeners) cb(s);
   }
 
@@ -303,7 +324,7 @@ export class StaticSentenceStore implements SentenceStore {
       if (!res.ok) return 0;
       const data: unknown = await res.json();
       if (!Array.isArray(data)) return 0;
-      const seen = new Set(this.sentences);
+      const seen = new Set([...this.builtin, ...this.external]);
       let added = 0;
       for (const item of data) {
         if (typeof item !== 'string') continue;
@@ -311,7 +332,7 @@ export class StaticSentenceStore implements SentenceStore {
         const words = s.split(/\s+/).length;
         if (s.length === 0 || words < 3 || words > 24 || seen.has(s)) continue;
         seen.add(s);
-        this.sentences.push(s);
+        this.external.push(s);
         added++;
       }
       return added;
