@@ -5,6 +5,7 @@
 import p5 from 'p5';
 import { ParamStore, PARAM_DEFS } from './core/params';
 import { BroadcastTransport } from './core/transport';
+import { attachOscBridge } from './core/wsTransport';
 import { Clock } from './core/clock';
 import { resolveFont } from './core/fonts';
 import { StaticSentenceStore } from './data/sentences';
@@ -21,7 +22,9 @@ const W = 1920;
 const H = 1080;
 
 const params = new ParamStore(PARAM_DEFS);
-const transport = new BroadcastTransport();
+// Render window only: mirror onto the OSC bridge WS (silent no-op when the
+// bridge isn't running). The panel keeps plain BroadcastChannel.
+const transport = attachOscBridge(new BroadcastTransport());
 params.bindTransport(transport, 'render');
 
 const clock = new Clock(params);
