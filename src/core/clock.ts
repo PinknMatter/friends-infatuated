@@ -17,6 +17,8 @@ export class Clock {
   private detectedBpm = 0;
   private tapTimes: number[] = [];
   private phaseOrigin = 0; // time of beat 0
+  private smoothedBpm = 0; // eased manual tempo (gradual slider takeover)
+  private lastUpdateTime = -1;
 
   /** Total beats elapsed (float). */
   beatPosition = 0;
@@ -30,7 +32,9 @@ export class Clock {
 
   get bpm(): number {
     if (this.params.bool('audio/useManualBpm')) {
-      return this.params.num('audio/manualBpm');
+      // The EASED tempo, not the raw param — the grid (and everything shown)
+      // glides toward the slider instead of jumping.
+      return this.smoothedBpm > 0 ? this.smoothedBpm : this.params.num('audio/manualBpm');
     }
     // Auto mode: manual BPM is disabled — detection or the neutral default.
     return this.detectedBpm > 0 ? this.detectedBpm : DEFAULT_AUTO_BPM;
@@ -110,18 +114,42 @@ export class Clock {
       const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length;
       const bpm = Math.min(200, Math.max(60, 60 / avg));
       this.params.set('audio/manualBpm', Math.round(bpm * 2) / 2);
-      this.phaseOrigin = now;
+      // Snap the nearest beat boundary to the tap while PRESERVING the
+      // accumulated beat count — resetting the origin to now yanked
+      // barPosition back to 0 and stalled the phase scheduler.
+      this.beatPosition = Math.round(this.beatPosition);
+      this.phaseOrigin = now - this.beatPosition * this.beatDuration;
     }
   }
 
   /** Advance the clock; call once per frame. */
   update(time: number): void {
+    // dt clamp: after a hidden-tab rAF pause the grid resumes instead of
+    // fast-forwarding hundreds of beats.
+    const dt = this.lastUpdateTime >= 0 ? Math.min(time - this.lastUpdateTime, 0.25) : 0;
+    this.lastUpdateTime = time;
     const prev = this.beatPosition;
-    this.beatPosition = (time - this.phaseOrigin) / this.beatDuration;
     if (this.params.bool('audio/useManualBpm')) {
+      // Gradual slider takeover: ease the effective tempo toward the param
+      // and advance the grid INCREMENTALLY. Recomputing beatPosition from a
+      // fixed origin rescales ALL elapsed time on any bpm change, so
+      // barPosition leaps and the scheduler burns through phases (real
+      // user-reported bug: riding the slider live made everything flash).
+      const target = this.params.num('audio/manualBpm');
+      const glide = this.params.num('audio/bpmGlideSecs');
+      if (this.smoothedBpm <= 0 || glide < 0.05) {
+        this.smoothedBpm = target;
+      } else {
+        this.smoothedBpm += (target - this.smoothedBpm) * (1 - Math.exp(-dt / glide));
+        if (Math.abs(target - this.smoothedBpm) < 0.05) this.smoothedBpm = target;
+      }
+      this.beatPosition += dt / this.beatDuration;
+      // Keep the origin coherent so mode switches land on a sane grid.
+      this.phaseOrigin = time - this.beatPosition * this.beatDuration;
       // Manual: beats fire on grid crossings, metronome-style.
       this.beatThisFrame = Math.floor(this.beatPosition) > Math.floor(prev);
     } else {
+      this.beatPosition = (time - this.phaseOrigin) / this.beatDuration;
       // Auto: beats fire ONLY on actually detected beats — silence = no beats.
       this.beatThisFrame = this.detectedThisFrame;
       this.detectedThisFrame = false;

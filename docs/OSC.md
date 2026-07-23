@@ -27,6 +27,16 @@ machine's LAN IP address(es) and both ports:
    - **Protocol**: `UDP`
 3. Receive port doesn't matter — the bridge never sends OSC back.
 
+## Ready-made layout
+
+`friends-infatuated.touchosc` at the repo root is a complete show layout
+(landscape, phone-sized): BPM fader (70–180), CHAOS fader, SKIP PHASE button,
+QR SCREEN toggle, BLACKOUT toggle — already wired to the addresses below.
+Get it onto the phone (AirDrop / Files / Drive / email), open it in TouchOSC
+(current app opens this legacy format directly), set the connection per the
+setup above, and hit play. Regenerate/tweak: the layout is just a zip
+containing one `index.xml` (control names/labels are base64).
+
 ## Address map (show layout)
 
 | Control | Address | Args / range |

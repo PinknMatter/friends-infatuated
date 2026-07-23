@@ -283,6 +283,9 @@ export const PARAM_DEFS: ParamDef[] = [
   // (0 = music tempo doesn't affect motion, 1 = full effect).
   F('audio/driveAmount', 'Tempo drives motion', 'audio', 0.85, 0, 1),
   F('audio/manualBpm', 'Manual BPM', 'audio', 128, 60, 200, 0.5),
+  // Seconds for the grid tempo to glide toward the slider (0 = instant).
+  // Riding the slider live must NOT jump the bar position / burn phases.
+  F('audio/bpmGlideSecs', 'BPM glide secs', 'audio', 1, 0, 5),
   B('audio/useManualBpm', 'MANUAL BPM (overrides detection)', 'audio', true),
   T('audio/tapTempo', 'Tap tempo', 'audio'),
   // audio file playback (uploaded from the control panel for tuning)
